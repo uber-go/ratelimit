@@ -1,0 +1,6 @@
+hash: 365ac816fc087e5a7cc3bf169c22f68e2ae338261e4a023388755e781c6b2742
+updated: 2016-09-09T18:19:15.108171182-07:00
+imports:
+- name: github.com/andres-erbsen/clock
+  version: 9e14626cd129ba01ccb6806bcca9d523e570aaf0
+testImports: []
