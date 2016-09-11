@@ -22,18 +22,11 @@ func TestRateLimiter(t *testing.T) {
 	done := make(chan struct{})
 	defer close(done)
 
-	// Generate copious counts.
-	go func() {
-		for {
-			rl.Take()
-			count.Inc()
-			select {
-			case <-done:
-				return
-			default:
-			}
-		}
-	}()
+	// Create copious counts concurrently.
+	go job(rl, count, done)
+	go job(rl, count, done)
+	go job(rl, count, done)
+	go job(rl, count, done)
 
 	clock.AfterFunc(time.Second, func() {
 		assert.InDelta(t, 100, count.Load(), 10, "count within rate limit")
@@ -49,4 +42,16 @@ func TestRateLimiter(t *testing.T) {
 	}
 
 	wg.Wait()
+}
+
+func job(rl Limiter, count *atomic.Int32, done <-chan struct{}) {
+	for {
+		rl.Take()
+		count.Inc()
+		select {
+		case <-done:
+			return
+		default:
+		}
+	}
 }
