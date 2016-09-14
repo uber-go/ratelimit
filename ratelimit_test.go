@@ -1,6 +1,7 @@
 package ratelimit_test
 
 import (
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -11,6 +12,27 @@ import (
 	"github.com/uber-go/atomic"
 	"github.com/uber-go/ratelimit"
 )
+
+func ExampleRatelimit() {
+	rl := ratelimit.New(10) // per second
+
+	for i := 0; i < 10; i++ {
+		rl.Take()
+		fmt.Println(i)
+	}
+
+	// Output:
+	// 0
+	// 1
+	// 2
+	// 3
+	// 4
+	// 5
+	// 6
+	// 7
+	// 8
+	// 9
+}
 
 func TestRateLimiter(t *testing.T) {
 	var wg sync.WaitGroup
