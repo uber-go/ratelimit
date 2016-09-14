@@ -15,8 +15,6 @@ func (ts Timers) Less(i, j int) bool {
 
 func (ts *Timers) Push(t interface{}) {
 	*ts = append(*ts, t.(*Timer))
-	// heap.Fix(ts, len(*ts)-1)
-	// heap.Push(ts, t)
 }
 
 func (ts *Timers) Pop() interface{} {
