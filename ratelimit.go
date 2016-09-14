@@ -35,7 +35,7 @@ import (
 // may block to throttle the goroutine.
 type Limiter interface {
 	// Take should block to make sure that the RPS is met.
-	Take()
+	Take() time.Time
 }
 
 // Clock is the minimum necessary interface to instantiate a rate limiter with
@@ -81,7 +81,7 @@ func NewWithClockWithoutSlack(rate int, clock Clock) Limiter {
 
 // Take blocks to ensure that the time spent between multiple
 // Take calls is on average time.Second/rate.
-func (t *limiter) Take() {
+func (t *limiter) Take() time.Time {
 	t.Lock()
 	defer t.Unlock()
 
@@ -90,7 +90,7 @@ func (t *limiter) Take() {
 	// If this is our first request, then we allow it.
 	if t.last.IsZero() {
 		t.last = now
-		return
+		return t.last
 	}
 
 	// sleepFor calculates how much time we should sleep based on
@@ -114,6 +114,8 @@ func (t *limiter) Take() {
 	} else {
 		t.last = now
 	}
+
+	return t.last
 }
 
 type unlimited struct{}
@@ -123,4 +125,6 @@ func NewUnlimited() Limiter {
 	return unlimited{}
 }
 
-func (unlimited) Take() {}
+func (unlimited) Take() time.Time {
+	return time.Now()
+}

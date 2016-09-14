@@ -14,24 +14,27 @@ import (
 )
 
 func ExampleRatelimit() {
-	rl := ratelimit.New(10) // per second
+	rl := ratelimit.New(100) // per second
 
+	prev := time.Now()
 	for i := 0; i < 10; i++ {
-		rl.Take()
-		fmt.Println(i)
+		now := rl.Take()
+		if i > 0 {
+			fmt.Println(i, now.Sub(prev))
+		}
+		prev = now
 	}
 
 	// Output:
-	// 0
-	// 1
-	// 2
-	// 3
-	// 4
-	// 5
-	// 6
-	// 7
-	// 8
-	// 9
+	// 1 10ms
+	// 2 10ms
+	// 3 10ms
+	// 4 10ms
+	// 5 10ms
+	// 6 10ms
+	// 7 10ms
+	// 8 10ms
+	// 9 10ms
 }
 
 func TestRateLimiter(t *testing.T) {
