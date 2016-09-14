@@ -1,2 +1,2 @@
 test:
-	go test ratelimit_test.go
+	go test .
