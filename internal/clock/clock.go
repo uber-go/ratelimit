@@ -3,7 +3,7 @@ package clock
 // Forked from github.com/andres-erbsen/clock to isolate a missing nap.
 
 import (
-	"sort"
+	"container/heap"
 	"sync"
 	"time"
 )
@@ -30,15 +30,11 @@ func (m *Mock) Add(d time.Duration) {
 	end := m.now.Add(d)
 
 	for len(m.timers) > 0 && m.now.Before(end) {
-		// TODO use a heap instead of resorting an array every iteration.
-		// (Advantage of this approach is that the timers are in stable order.)
-		sort.Stable(m.timers)
-		t := m.timers[0]
+		t := heap.Pop(&m.timers).(*Timer)
 		m.now = t.next
 		m.Unlock()
 		t.Tick()
 		m.Lock()
-		m.timers = m.timers[1:]
 	}
 
 	m.Unlock()
@@ -46,7 +42,7 @@ func (m *Mock) Add(d time.Duration) {
 	nap()
 }
 
-// Produces a timer that will emit a time some duration after now.
+// Timer produces a timer that will emit a time some duration after now.
 func (m *Mock) Timer(d time.Duration) *Timer {
 	ch := make(chan time.Time, 0)
 	t := &Timer{
@@ -63,9 +59,11 @@ func (m *Mock) addTimer(t *Timer) {
 	m.Lock()
 	defer m.Unlock()
 	// Lazy about sorting.
-	m.timers = append(m.timers, t)
+	heap.Push(&m.timers, t)
+	// m.timers = append(m.timers, t)
 }
 
+// After produces a channel that will emit the time after a duration passes.
 func (m *Mock) After(d time.Duration) <-chan time.Time {
 	return m.Timer(d).C
 }
@@ -92,15 +90,6 @@ func (m *Mock) Now() time.Time {
 func (m *Mock) Sleep(d time.Duration) {
 	<-m.After(d)
 }
-
-// timers represents a list of sortable timers.
-type Timers []*Timer
-
-func (a Timers) Len() int { return len(a) }
-func (a Timers) Swap(i, j int) {
-	a[i], a[j] = a[j], a[i]
-}
-func (a Timers) Less(i, j int) bool { return a[i].Next().Before(a[j].Next()) }
 
 // Timer represents a single event.
 // The current time will be sent on C, unless the timer was created by AfterFunc.
