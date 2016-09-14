@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/uber-go/ratelimit/internal/clock"
+	"go.uber.org/ratelimit"
+	"go.uber.org/ratelimit/internal/clock"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/uber-go/atomic"
-	"github.com/uber-go/ratelimit"
 )
 
 func ExampleRatelimit() {
