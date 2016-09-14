@@ -24,7 +24,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/andres-erbsen/clock"
+	"github.com/uber-go/ratelimit/internal/clock"
 )
 
 // Note: This file is inspired by:
@@ -32,10 +32,18 @@ import (
 
 // Limiter is used to rate-limit some process, possibly across goroutines.
 // The process is expected to call Take() before every iteration, which
-// may block to throttle the process.
+// may block to throttle the goroutine.
 type Limiter interface {
 	// Take should block to make sure that the RPS is met.
 	Take()
+}
+
+// Clock is the minimum necessary interface to instantiate a rate limiter with
+// a clock or mock clock, compatible with clocks created using
+// github.com/andres-erbsen/clock.
+type Clock interface {
+	Now() time.Time
+	Sleep(time.Duration)
 }
 
 type limiter struct {
@@ -44,7 +52,7 @@ type limiter struct {
 	sleepFor   time.Duration
 	perRequest time.Duration
 	maxSlack   time.Duration
-	clock      clock.Clock
+	clock      Clock
 }
 
 // New returns a Limiter that will limit to the given RPS.
@@ -53,10 +61,20 @@ func New(rate int) Limiter {
 }
 
 // NewWithClock returns a Limiter with an alternate clock, for testing.
-func NewWithClock(rate int, clock clock.Clock) Limiter {
+func NewWithClock(rate int, clock Clock) Limiter {
 	return &limiter{
 		perRequest: time.Second / time.Duration(rate),
 		maxSlack:   -10 * time.Second / time.Duration(rate),
+		clock:      clock,
+	}
+}
+
+// NewWithClockWithoutSlack returns a Limiter with an alternate clock and
+// without slack, for testing.
+func NewWithClockWithoutSlack(rate int, clock Clock) Limiter {
+	return &limiter{
+		perRequest: time.Second / time.Duration(rate),
+		maxSlack:   0,
 		clock:      clock,
 	}
 }
@@ -67,10 +85,11 @@ func (t *limiter) Take() {
 	t.Lock()
 	defer t.Unlock()
 
+	now := t.clock.Now()
+
 	// If this is our first request, then we allow it.
-	cur := t.clock.Now()
 	if t.last.IsZero() {
-		t.last = cur
+		t.last = now
 		return
 	}
 
@@ -78,8 +97,7 @@ func (t *limiter) Take() {
 	// the perRequest budget and how long the last request took.
 	// Since the request may take longer than the budget, this number
 	// can get negative, and is summed across requests.
-	t.sleepFor += t.perRequest - cur.Sub(t.last)
-	t.last = cur
+	t.sleepFor += t.perRequest - now.Sub(t.last)
 
 	// We shouldn't allow sleepFor to get too negative, since it would mean that
 	// a service that slowed down a lot for a short period of time would get
@@ -91,16 +109,18 @@ func (t *limiter) Take() {
 	// If sleepFor is positive, then we should sleep now.
 	if t.sleepFor > 0 {
 		t.clock.Sleep(t.sleepFor)
-		t.last = cur.Add(t.sleepFor)
+		t.last = now.Add(t.sleepFor)
 		t.sleepFor = 0
+	} else {
+		t.last = now
 	}
 }
 
-type dummy struct{}
+type unlimited struct{}
 
-// NewInfinite returns a RateLimiter that is not limited.
-func NewInfinite() Limiter {
-	return dummy{}
+// NewUnlimited returns a RateLimiter that is not limited.
+func NewUnlimited() Limiter {
+	return unlimited{}
 }
 
-func (dummy) Take() {}
+func (unlimited) Take() {}
