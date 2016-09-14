@@ -8,24 +8,33 @@ Create a rate limiter with a maximum number of operations to perform per second.
 Call Take() before each operation. Take will sleep until you can continue.
 
 ```go
-rl := ratelimit.New(100) // per second
+import (
+	"fmt"
+	"time"
 
-prev := time.Now()
-for i := 0; i < 10; i++ {
-    now := rl.Take()
-    fmt.Println(i, now.Sub(prev))
-    prev = now
+	"go.uber.org/ratelimit"
+)
+
+func main() {
+    rl := ratelimit.New(100) // per second
+
+    prev := time.Now()
+    for i := 0; i < 10; i++ {
+        now := rl.Take()
+        fmt.Println(i, now.Sub(prev))
+        prev = now
+    }
+
+    // Output:
+    // 0 0
+    // 1 10ms
+    // 2 10ms
+    // 3 10ms
+    // 4 10ms
+    // 5 10ms
+    // 6 10ms
+    // 7 10ms
+    // 8 10ms
+    // 9 10ms
 }
-
-// Output:
-// 0 0
-// 1 10ms
-// 2 10ms
-// 3 10ms
-// 4 10ms
-// 5 10ms
-// 6 10ms
-// 7 10ms
-// 8 10ms
-// 9 10ms
 ```
