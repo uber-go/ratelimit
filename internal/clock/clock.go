@@ -44,7 +44,7 @@ func (m *Mock) Add(d time.Duration) {
 
 // Timer produces a timer that will emit a time some duration after now.
 func (m *Mock) Timer(d time.Duration) *Timer {
-	ch := make(chan time.Time, 0)
+	ch := make(chan time.Time)
 	t := &Timer{
 		C:    ch,
 		c:    ch,
@@ -58,9 +58,7 @@ func (m *Mock) Timer(d time.Duration) *Timer {
 func (m *Mock) addTimer(t *Timer) {
 	m.Lock()
 	defer m.Unlock()
-	// Lazy about sorting.
 	heap.Push(&m.timers, t)
-	// m.timers = append(m.timers, t)
 }
 
 // After produces a channel that will emit the time after a duration passes.
@@ -82,6 +80,8 @@ func (m *Mock) AfterFunc(d time.Duration, f func()) *Timer {
 
 // Now returns the current wall time on the mock clock.
 func (m *Mock) Now() time.Time {
+	m.Lock()
+	defer m.Unlock()
 	return m.now
 }
 
@@ -92,7 +92,6 @@ func (m *Mock) Sleep(d time.Duration) {
 }
 
 // Timer represents a single event.
-// The current time will be sent on C, unless the timer was created by AfterFunc.
 type Timer struct {
 	C    <-chan time.Time
 	c    chan time.Time

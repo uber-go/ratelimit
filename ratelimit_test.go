@@ -49,9 +49,7 @@ func TestUnlimited(t *testing.T) {
 func TestRateLimiter(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(1)
-
-	// clock := clock.New()
-	// rl := ratelimit.New(100)
+	defer wg.Wait()
 
 	clock := clock.NewMock()
 	rl := ratelimit.NewWithClockWithoutSlack(100, clock)
@@ -83,15 +81,13 @@ func TestRateLimiter(t *testing.T) {
 
 	clock.Add(4 * time.Second)
 
-	wg.Wait()
+	clock.Add(5 * time.Second)
 }
 
 func TestDelayedRateLimiter(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(1)
-
-	// clock := clock.New()
-	// rl := ratelimit.New(100)
+	defer wg.Wait()
 
 	clock := clock.NewMock()
 	slow := ratelimit.NewWithClockWithoutSlack(10, clock)
@@ -132,8 +128,6 @@ func TestDelayedRateLimiter(t *testing.T) {
 	})
 
 	clock.Add(40 * time.Second)
-
-	wg.Wait()
 }
 
 func job(rl ratelimit.Limiter, count *atomic.Int32, done <-chan struct{}) {
