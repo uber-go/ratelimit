@@ -55,27 +55,36 @@ type limiter struct {
 	clock      Clock
 }
 
-// New returns a Limiter that will limit to the given RPS.
-func New(rate int) Limiter {
-	return NewWithClock(rate, clock.New())
-}
+type option func(l *limiter)
 
-// NewWithClock returns a Limiter with an alternate clock, for testing.
-func NewWithClock(rate int, clock Clock) Limiter {
-	return &limiter{
+// New returns a Limiter that will limit to the given RPS.
+func New(rate int, opts ...option) Limiter {
+	l := &limiter{
 		perRequest: time.Second / time.Duration(rate),
 		maxSlack:   -10 * time.Second / time.Duration(rate),
-		clock:      clock,
+	}
+	for _, opt := range opts {
+		opt(l)
+	}
+	if l.clock == nil {
+		l.clock = clock.New()
+	}
+	return l
+}
+
+// WithClock returns an option for ratelimit.New that provides an alternate
+// Clock implementation, typically a mock Clock for testing.
+func WithClock(clock Clock) func(l *limiter) {
+	return func(l *limiter) {
+		l.clock = clock
 	}
 }
 
-// NewWithClockWithoutSlack returns a Limiter with an alternate clock and
-// without slack, for testing.
-func NewWithClockWithoutSlack(rate int, clock Clock) Limiter {
-	return &limiter{
-		perRequest: time.Second / time.Duration(rate),
-		maxSlack:   0,
-		clock:      clock,
+// WithSlack returns an option for ratelimiter.New that provides an alternate
+// tolerance for bursts, as a multiple of the rate limit, 10 by default.
+func WithSlack(m int) func(l *limiter) {
+	return func(l *limiter) {
+		l.maxSlack = time.Duration(-m) * l.perRequest
 	}
 }
 
