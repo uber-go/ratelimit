@@ -80,12 +80,10 @@ func WithClock(clock Clock) func(l *limiter) {
 	}
 }
 
-// WithSlack returns an option for ratelimiter.New that provides an alternate
-// tolerance for bursts, as a multiple of the rate limit, 10 by default.
-func WithSlack(m int) func(l *limiter) {
-	return func(l *limiter) {
-		l.maxSlack = time.Duration(-m) * l.perRequest
-	}
+// WithoutSlack is an option for ratelimit.New that initializes the limiter
+// without any initial tolerance for bursts of traffic.
+func WithoutSlack(l *limiter) {
+	l.maxSlack = 0
 }
 
 // Take blocks to ensure that the time spent between multiple

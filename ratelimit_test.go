@@ -52,7 +52,7 @@ func TestRateLimiter(t *testing.T) {
 	defer wg.Wait()
 
 	clock := clock.NewMock()
-	rl := ratelimit.New(100, ratelimit.WithClock(clock), ratelimit.WithSlack(0))
+	rl := ratelimit.New(100, ratelimit.WithClock(clock), ratelimit.WithoutSlack)
 
 	count := atomic.NewInt32(0)
 
