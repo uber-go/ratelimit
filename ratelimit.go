@@ -55,10 +55,11 @@ type limiter struct {
 	clock      Clock
 }
 
-type option func(l *limiter)
+// Option configures a Limiter.
+type Option func(l *limiter)
 
 // New returns a Limiter that will limit to the given RPS.
-func New(rate int, opts ...option) Limiter {
+func New(rate int, opts ...Option) Limiter {
 	l := &limiter{
 		perRequest: time.Second / time.Duration(rate),
 		maxSlack:   -10 * time.Second / time.Duration(rate),
@@ -74,7 +75,7 @@ func New(rate int, opts ...option) Limiter {
 
 // WithClock returns an option for ratelimit.New that provides an alternate
 // Clock implementation, typically a mock Clock for testing.
-func WithClock(clock Clock) func(l *limiter) {
+func WithClock(clock Clock) Option {
 	return func(l *limiter) {
 		l.clock = clock
 	}
@@ -82,7 +83,9 @@ func WithClock(clock Clock) func(l *limiter) {
 
 // WithoutSlack is an option for ratelimit.New that initializes the limiter
 // without any initial tolerance for bursts of traffic.
-func WithoutSlack(l *limiter) {
+var WithoutSlack Option = withoutSlackOption
+
+func withoutSlackOption(l *limiter) {
 	l.maxSlack = 0
 }
 
