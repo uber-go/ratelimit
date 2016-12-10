@@ -24,8 +24,12 @@ package clock
 
 import (
 	"container/heap"
+	"fmt"
+	"os"
 	"sync"
 	"time"
+
+	"github.com/cat2neat/gopeek"
 )
 
 // Mock represents a mock clock that only moves forward programmically.
@@ -44,12 +48,19 @@ func NewMock() *Mock {
 
 // Add moves the current time of the mock clock forward by the duration.
 // This should only be called from a single goroutine at a time.
-func (m *Mock) Add(d time.Duration) {
+func (m *Mock) Add(d time.Duration, condition *gopeek.Condition) {
 	m.Lock()
 	// Calculate the final time.
 	end := m.now.Add(d)
 
 	for len(m.timers) > 0 && m.now.Before(end) {
+		// Wait before popping from timers
+		m.Unlock()
+		_, err := condition.Wait(time.Second)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: %+v\n", err)
+		}
+		m.Lock()
 		t := heap.Pop(&m.timers).(*Timer)
 		m.now = t.next
 		m.Unlock()
@@ -58,8 +69,6 @@ func (m *Mock) Add(d time.Duration) {
 	}
 
 	m.Unlock()
-	// Give a small buffer to make sure the other goroutines get handled.
-	nap()
 }
 
 // Timer produces a timer that will emit a time some duration after now.
@@ -94,7 +103,6 @@ func (m *Mock) AfterFunc(d time.Duration, f func()) *Timer {
 		<-t.c
 		f()
 	}()
-	nap()
 	return t
 }
 
@@ -126,8 +134,4 @@ func (t *Timer) Tick() {
 	case t.c <- t.next:
 	default:
 	}
-	nap()
 }
-
-// Sleep momentarily so that other goroutines can process.
-func nap() { time.Sleep(1 * time.Millisecond) }

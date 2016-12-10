@@ -9,6 +9,7 @@ import (
 	"go.uber.org/ratelimit"
 	"go.uber.org/ratelimit/internal/clock"
 
+	"github.com/cat2neat/gopeek"
 	"github.com/stretchr/testify/assert"
 	"github.com/uber-go/atomic"
 )
@@ -79,9 +80,14 @@ func TestRateLimiter(t *testing.T) {
 		wg.Done()
 	})
 
-	clock.Add(4 * time.Second)
+	condition := gopeek.NewCondition().
+		CreatedBy("ratelimit_test.TestRateLimiter").
+		Is(gopeek.StateWaitingChannel).
+		// go ahead when there is only one waiting channel via Mock.Sleep
+		// as it's evidence that ratelimit occurred
+		EQ(1)
 
-	clock.Add(5 * time.Second)
+	clock.Add(4*time.Second, condition)
 }
 
 func TestDelayedRateLimiter(t *testing.T) {
@@ -127,7 +133,13 @@ func TestDelayedRateLimiter(t *testing.T) {
 		wg.Done()
 	})
 
-	clock.Add(40 * time.Second)
+	condition := gopeek.NewCondition().
+		CreatedBy("ratelimit_test.TestDelayedRateLimiter").
+		Is(gopeek.StateWaitingChannel).
+		// go ahead when there is >= 1 waiting channel via Mock.Sleep
+		// as it's evidence that ratelimit occurred
+		GT(0)
+	clock.Add(40*time.Second, condition)
 }
 
 func job(rl ratelimit.Limiter, count *atomic.Int32, done <-chan struct{}) {
