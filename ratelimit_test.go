@@ -129,7 +129,8 @@ func TestDelayedRateLimiter(t *testing.T) {
 	})
 
 	clock.AfterFunc(30*time.Second, func() {
-		assert.InDelta(t, 1200, count.Load(), 10, "count within rate limit")
+		// 11 is more accurate as a slow job also may count up before this func.
+		assert.InDelta(t, 1200, count.Load(), 11, "count within rate limit")
 		wg.Done()
 	})
 
