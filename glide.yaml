@@ -5,3 +5,4 @@ testImport:
   subpackages:
   - assert
 - package: github.com/uber-go/atomic
+- package: github.com/cat2neat/gopeek
