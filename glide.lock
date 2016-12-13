@@ -1,7 +1,21 @@
-hash: 1a0062ef2d587d01d6f576a71957f65375c8bb6e241175c9568a1bb78e75e961
-updated: 2016-09-15T11:05:34.222002397-07:00
-imports: []
+hash: c7cd958e26264a16871379d6552c8c91064569141ee09026cb57461a06517d32
+updated: 2016-12-11T02:20:35.223545802Z
+imports:
+- name: github.com/cat2neat/gopeek
+  version: aa9fedf5c8c91f2e882c342a8388de958e21a210
+- name: github.com/maruel/panicparse
+  version: ad661195ed0e88491e0f14be6613304e3b1141d6
+  subpackages:
+  - stack
 testImports:
+- name: github.com/davecgh/go-spew
+  version: 5215b55f46b2b919f50a1df0eaa5886afe4e3b3d
+  subpackages:
+  - spew
+- name: github.com/pmezard/go-difflib
+  version: d8ed2627bdf02c080bf22230dbb337003b7aba2d
+  subpackages:
+  - difflib
 - name: github.com/stretchr/testify
   version: d77da356e56a7428ad25149ca77381849a6a5232
   subpackages:
