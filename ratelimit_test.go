@@ -137,7 +137,7 @@ func TestDelayedRateLimiter(t *testing.T) {
 	condition := gopeek.NewCondition().
 		CreatedBy("ratelimit_test.TestDelayedRateLimiter").
 		Is(gopeek.StateWaitingChannel).
-		// go ahead when there is >= 1 waiting channel via Mock.Sleep
+		// go ahead when there is > 0 waiting channel via Mock.Sleep
 		// as it's evidence that ratelimit occurred
 		GT(0)
 	clock.Add(40*time.Second, condition)
