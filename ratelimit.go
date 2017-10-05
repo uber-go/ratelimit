@@ -25,6 +25,8 @@ import (
 	"time"
 
 	"go.uber.org/ratelimit/internal/clock"
+	"context"
+	"math"
 )
 
 // Note: This file is inspired by:
@@ -35,7 +37,7 @@ import (
 // may block to throttle the goroutine.
 type Limiter interface {
 	// Take should block to make sure that the RPS is met.
-	Take() time.Time
+	Take(context.Context) bool
 }
 
 // Clock is the minimum necessary interface to instantiate a rate limiter with
@@ -49,6 +51,7 @@ type Clock interface {
 type limiter struct {
 	sync.Mutex
 	last       time.Time
+	timer      *time.Timer
 	sleepFor   time.Duration
 	perRequest time.Duration
 	maxSlack   time.Duration
@@ -63,6 +66,7 @@ func New(rate int, opts ...Option) Limiter {
 	l := &limiter{
 		perRequest: time.Second / time.Duration(rate),
 		maxSlack:   -10 * time.Second / time.Duration(rate),
+		timer:      time.NewTimer(time.Duration(math.MaxInt64)),
 	}
 	for _, opt := range opts {
 		opt(l)
@@ -91,7 +95,7 @@ func withoutSlackOption(l *limiter) {
 
 // Take blocks to ensure that the time spent between multiple
 // Take calls is on average time.Second/rate.
-func (t *limiter) Take() time.Time {
+func (t *limiter) Take(ctx context.Context) bool {
 	t.Lock()
 	defer t.Unlock()
 
@@ -100,7 +104,7 @@ func (t *limiter) Take() time.Time {
 	// If this is our first request, then we allow it.
 	if t.last.IsZero() {
 		t.last = now
-		return t.last
+		return true
 	}
 
 	// sleepFor calculates how much time we should sleep based on
@@ -108,6 +112,7 @@ func (t *limiter) Take() time.Time {
 	// Since the request may take longer than the budget, this number
 	// can get negative, and is summed across requests.
 	t.sleepFor += t.perRequest - now.Sub(t.last)
+	t.last = now
 
 	// We shouldn't allow sleepFor to get too negative, since it would mean that
 	// a service that slowed down a lot for a short period of time would get
@@ -118,14 +123,18 @@ func (t *limiter) Take() time.Time {
 
 	// If sleepFor is positive, then we should sleep now.
 	if t.sleepFor > 0 {
-		t.clock.Sleep(t.sleepFor)
+		t.timer.Reset(t.sleepFor)
+		select {
+		case <-t.timer.C:
+		case <-ctx.Done():
+			return false
+		}
+
 		t.last = now.Add(t.sleepFor)
 		t.sleepFor = 0
-	} else {
-		t.last = now
 	}
 
-	return t.last
+	return true
 }
 
 type unlimited struct{}
@@ -135,6 +144,6 @@ func NewUnlimited() Limiter {
 	return unlimited{}
 }
 
-func (unlimited) Take() time.Time {
-	return time.Now()
+func (unlimited) Take(_ context.Context) bool{
+	return true
 }
