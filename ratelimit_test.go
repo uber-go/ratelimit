@@ -5,13 +5,12 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"context"
 
 	"go.uber.org/ratelimit"
-	"go.uber.org/ratelimit/internal/clock"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/uber-go/atomic"
-	"context"
 )
 
 func ExampleRatelimit() {
@@ -56,14 +55,12 @@ func TestRateLimiter(t *testing.T) {
 	wg.Add(1)
 	defer wg.Wait()
 
-	clock := clock.NewMock()
-	rl := ratelimit.New(100, ratelimit.WithClock(clock), ratelimit.WithoutSlack)
+	rl := ratelimit.New(100, ratelimit.WithoutSlack)
 
 	count := atomic.NewInt32(0)
 
 	// Until we're done...
-	ctx, done := context.WithCancel(context.Background())
-	defer done()
+	ctx := context.Background()
 
 	// Create copious counts concurrently.
 	go job(rl, count, ctx)
@@ -71,22 +68,20 @@ func TestRateLimiter(t *testing.T) {
 	go job(rl, count, ctx)
 	go job(rl, count, ctx)
 
-	clock.AfterFunc(1*time.Second, func() {
+	time.AfterFunc(1*time.Second, func() {
 		assert.InDelta(t, 100, count.Load(), 10, "count within rate limit")
 	})
 
-	clock.AfterFunc(2*time.Second, func() {
+	time.AfterFunc(2*time.Second, func() {
 		assert.InDelta(t, 200, count.Load(), 10, "count within rate limit")
 	})
 
-	clock.AfterFunc(3*time.Second, func() {
+	time.AfterFunc(3*time.Second, func() {
 		assert.InDelta(t, 300, count.Load(), 10, "count within rate limit")
 		wg.Done()
 	})
 
-	clock.Add(4 * time.Second)
-
-	clock.Add(5 * time.Second)
+	<-time.NewTimer(10 * time.Second).C
 }
 
 func TestDelayedRateLimiter(t *testing.T) {
@@ -94,15 +89,13 @@ func TestDelayedRateLimiter(t *testing.T) {
 	wg.Add(1)
 	defer wg.Wait()
 
-	clock := clock.NewMock()
-	slow := ratelimit.New(10, ratelimit.WithClock(clock))
-	fast := ratelimit.New(100, ratelimit.WithClock(clock))
+	slow := ratelimit.New(10)
+	fast := ratelimit.New(100)
 
 	count := atomic.NewInt32(0)
 
 	// Until we're done...
-	ctx, done := context.WithCancel(context.Background())
-	defer done()
+	ctx := context.Background()
 
 	// Run a slow job
 	go func() {
@@ -119,7 +112,7 @@ func TestDelayedRateLimiter(t *testing.T) {
 	}()
 
 	// Accumulate slack for 10 seconds,
-	clock.AfterFunc(20*time.Second, func() {
+	time.AfterFunc(20*time.Second, func() {
 		// Then start working.
 		go job(fast, count, ctx)
 		go job(fast, count, ctx)
@@ -127,12 +120,10 @@ func TestDelayedRateLimiter(t *testing.T) {
 		go job(fast, count, ctx)
 	})
 
-	clock.AfterFunc(30*time.Second, func() {
+	time.AfterFunc(30*time.Second, func() {
 		assert.InDelta(t, 1200, count.Load(), 10, "count within rate limit")
 		wg.Done()
 	})
-
-	clock.Add(40 * time.Second)
 }
 
 func job(rl ratelimit.Limiter, count *atomic.Int32, ctx context.Context) {

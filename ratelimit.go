@@ -24,7 +24,6 @@ import (
 	"sync"
 	"time"
 
-	"go.uber.org/ratelimit/internal/clock"
 	"context"
 	"math"
 )
@@ -40,14 +39,6 @@ type Limiter interface {
 	Take(context.Context) bool
 }
 
-// Clock is the minimum necessary interface to instantiate a rate limiter with
-// a clock or mock clock, compatible with clocks created using
-// github.com/andres-erbsen/clock.
-type Clock interface {
-	Now() time.Time
-	Sleep(time.Duration)
-}
-
 type limiter struct {
 	sync.Mutex
 	last       time.Time
@@ -55,7 +46,6 @@ type limiter struct {
 	sleepFor   time.Duration
 	perRequest time.Duration
 	maxSlack   time.Duration
-	clock      Clock
 }
 
 // Option configures a Limiter.
@@ -71,18 +61,7 @@ func New(rate int, opts ...Option) Limiter {
 	for _, opt := range opts {
 		opt(l)
 	}
-	if l.clock == nil {
-		l.clock = clock.New()
-	}
 	return l
-}
-
-// WithClock returns an option for ratelimit.New that provides an alternate
-// Clock implementation, typically a mock Clock for testing.
-func WithClock(clock Clock) Option {
-	return func(l *limiter) {
-		l.clock = clock
-	}
 }
 
 // WithoutSlack is an option for ratelimit.New that initializes the limiter
@@ -99,7 +78,7 @@ func (t *limiter) Take(ctx context.Context) bool {
 	t.Lock()
 	defer t.Unlock()
 
-	now := t.clock.Now()
+	now := time.Now()
 
 	// If this is our first request, then we allow it.
 	if t.last.IsZero() {
@@ -123,6 +102,7 @@ func (t *limiter) Take(ctx context.Context) bool {
 
 	// If sleepFor is positive, then we should sleep now.
 	if t.sleepFor > 0 {
+		t.timer.Stop()
 		t.timer.Reset(t.sleepFor)
 		select {
 		case <-t.timer.C:
@@ -144,6 +124,6 @@ func NewUnlimited() Limiter {
 	return unlimited{}
 }
 
-func (unlimited) Take(_ context.Context) bool{
+func (unlimited) Take(_ context.Context) bool {
 	return true
 }
