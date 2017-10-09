@@ -80,8 +80,6 @@ func TestRateLimiter(t *testing.T) {
 		assert.InDelta(t, 300, count.Load(), 10, "count within rate limit")
 		wg.Done()
 	})
-
-	<-time.NewTimer(10 * time.Second).C
 }
 
 func TestDelayedRateLimiter(t *testing.T) {
