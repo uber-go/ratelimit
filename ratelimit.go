@@ -102,7 +102,9 @@ func (t *limiter) Take(ctx context.Context) bool {
 
 	// If sleepFor is positive, then we should sleep now.
 	if t.sleepFor > 0 {
-		t.timer.Stop()
+		if !t.timer.Stop() {
+			<-t.timer.C
+		}
 		t.timer.Reset(t.sleepFor)
 		select {
 		case <-t.timer.C:
