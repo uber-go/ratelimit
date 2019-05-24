@@ -89,6 +89,13 @@ func withoutSlackOption(l *limiter) {
 	l.maxSlack = 0
 }
 
+// WithCustomDuration is an option to set durations not based around seconds.
+func WithCustomDuration(amount int, duration time.Duration) Option {
+	return func(l *limiter) {
+		l.perRequest = duration / time.Duration(amount)
+	}
+}
+
 // Take blocks to ensure that the time spent between multiple
 // Take calls is on average time.Second/rate.
 func (t *limiter) Take() time.Time {
