@@ -3,7 +3,6 @@ package ratelimit
 import (
 	"fmt"
 	"github.com/uber-go/atomic"
-	"go.uber.org/ratelimit"
 	"runtime"
 	"sync"
 	"testing"
@@ -13,9 +12,9 @@ func BenchmarkRateLimiter(b *testing.B) {
 	count := atomic.NewInt64(0)
 	for _, procs := range []int{1, 4, 8, 16} {
 		runtime.GOMAXPROCS(procs)
-		for name, limiter := range map[string]ratelimit.Limiter{
+		for name, limiter := range map[string]Limiter{
 			"atomic": New(b.N * 10000000),
-			"mutex":  NewMutexBased(b.N * 10000000),
+			"mutex":  newMutexBased(b.N * 10000000),
 		} {
 			for ng := 1; ng < 16; ng += 1 {
 				runner(b, name, procs, ng, limiter, count)

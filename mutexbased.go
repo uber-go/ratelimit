@@ -16,7 +16,7 @@ type mutexLimiter struct {
 }
 
 // New returns a Limiter that will limit to the given RPS.
-func NewMutexBased(rate int, opts ...Option) Limiter {
+func newMutexBased(rate int, opts ...Option) Limiter {
 	l := &mutexLimiter{
 		perRequest: time.Second / time.Duration(rate),
 		maxSlack:   -10 * time.Second / time.Duration(rate),
