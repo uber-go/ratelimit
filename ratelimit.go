@@ -89,8 +89,9 @@ func withoutSlackOption(l *limiter) {
 	l.maxSlack = 0
 }
 
-// WithCustomDuration is an option to set durations not based around seconds.
-func WithCustomDuration(amount int, duration time.Duration) Option {
+// WithCountPerDuration is an option to set durations not based around seconds.
+// This will override the `rate` argument of New()
+func WithCountPerDuration(amount int, duration time.Duration) Option {
 	return func(l *limiter) {
 		l.perRequest = duration / time.Duration(amount)
 	}
