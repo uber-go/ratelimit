@@ -21,10 +21,11 @@
 package ratelimit // import "go.uber.org/ratelimit"
 
 import (
-	"sync"
 	"time"
 
 	"go.uber.org/ratelimit/internal/clock"
+	"sync/atomic"
+	"unsafe"
 )
 
 // Note: This file is inspired by:
@@ -46,10 +47,15 @@ type Clock interface {
 	Sleep(time.Duration)
 }
 
+type state struct {
+	last     time.Time
+	sleepFor time.Duration
+}
+
 type limiter struct {
-	sync.Mutex
-	last       time.Time
-	sleepFor   time.Duration
+	state   unsafe.Pointer
+	padding [56]byte // cache line size - state pointer size = 64 - 8; created to avoid false sharing
+
 	perRequest time.Duration
 	maxSlack   time.Duration
 	clock      Clock
@@ -70,6 +76,11 @@ func New(rate int, opts ...Option) Limiter {
 	if l.clock == nil {
 		l.clock = clock.New()
 	}
+	initialState := state{
+		last:     time.Time{},
+		sleepFor: 0,
+	}
+	atomic.StorePointer(&l.state, unsafe.Pointer(&initialState))
 	return l
 }
 
@@ -92,40 +103,41 @@ func withoutSlackOption(l *limiter) {
 // Take blocks to ensure that the time spent between multiple
 // Take calls is on average time.Second/rate.
 func (t *limiter) Take() time.Time {
-	t.Lock()
-	defer t.Unlock()
+	newState := state{}
+	taken := false
+	for !taken {
+		now := t.clock.Now()
 
-	now := t.clock.Now()
+		previousStatePointer := atomic.LoadPointer(&t.state)
+		oldState := (*state)(previousStatePointer)
 
-	// If this is our first request, then we allow it.
-	if t.last.IsZero() {
-		t.last = now
-		return t.last
+		newState = state{}
+		newState.last = now
+
+		// If this is our first request, then we allow it.
+		if oldState.last.IsZero() {
+			taken = atomic.CompareAndSwapPointer(&t.state, previousStatePointer, unsafe.Pointer(&newState))
+			continue
+		}
+
+		// sleepFor calculates how much time we should sleep based on
+		// the perRequest budget and how long the last request took.
+		// Since the request may take longer than the budget, this number
+		// can get negative, and is summed across requests.
+		newState.sleepFor += t.perRequest - now.Sub(oldState.last)
+		// We shouldn't allow sleepFor to get too negative, since it would mean that
+		// a service that slowed down a lot for a short period of time would get
+		// a much higher RPS following that.
+		if newState.sleepFor < t.maxSlack {
+			newState.sleepFor = t.maxSlack
+		}
+		if newState.sleepFor > 0 {
+			newState.last = newState.last.Add(newState.sleepFor)
+		}
+		taken = atomic.CompareAndSwapPointer(&t.state, previousStatePointer, unsafe.Pointer(&newState))
 	}
-
-	// sleepFor calculates how much time we should sleep based on
-	// the perRequest budget and how long the last request took.
-	// Since the request may take longer than the budget, this number
-	// can get negative, and is summed across requests.
-	t.sleepFor += t.perRequest - now.Sub(t.last)
-
-	// We shouldn't allow sleepFor to get too negative, since it would mean that
-	// a service that slowed down a lot for a short period of time would get
-	// a much higher RPS following that.
-	if t.sleepFor < t.maxSlack {
-		t.sleepFor = t.maxSlack
-	}
-
-	// If sleepFor is positive, then we should sleep now.
-	if t.sleepFor > 0 {
-		t.clock.Sleep(t.sleepFor)
-		t.last = now.Add(t.sleepFor)
-		t.sleepFor = 0
-	} else {
-		t.last = now
-	}
-
-	return t.last
+	t.clock.Sleep(newState.sleepFor)
+	return newState.last
 }
 
 type unlimited struct{}
