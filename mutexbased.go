@@ -1,9 +1,10 @@
 package ratelimit
 
 import (
-	"go.uber.org/ratelimit/internal/clock"
 	"sync"
 	"time"
+
+	"go.uber.org/ratelimit/internal/clock"
 )
 
 type mutexLimiter struct {
