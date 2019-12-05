@@ -61,44 +61,88 @@ type limiter struct {
 	clock      Clock
 }
 
-// Option configures a Limiter.
-type Option func(l *limiter)
+type options struct {
+	interval time.Duration
+	slack    int
+	noSlack  bool
+	clock    Clock
+}
 
-// New returns a Limiter that will limit to the given RPS.
+var defaultOptions = options{
+	slack: 10,
+}
+
+// Option configures a Limiter.
+type Option interface {
+	apply(l *options)
+}
+
+type optionFunc func(*options)
+
+func (f optionFunc) apply(options *options) {
+	f(options)
+}
+
+// New returns a Limiter that will limit to the given takes per second.
 func New(rate int, opts ...Option) Limiter {
-	l := &limiter{
-		perRequest: time.Second / time.Duration(rate),
-		maxSlack:   -10 * time.Second / time.Duration(rate),
-	}
+	o := defaultOptions
 	for _, opt := range opts {
-		opt(l)
+		opt.apply(&o)
 	}
-	if l.clock == nil {
-		l.clock = clock.New()
+
+	l := &limiter{}
+
+	if o.noSlack {
+		o.slack = 0
 	}
+
+	if o.interval == 0 {
+		o.interval = time.Second
+	}
+	l.perRequest = o.interval / time.Duration(rate)
+	l.maxSlack = -time.Duration(o.slack) * o.interval / time.Duration(rate)
+
+	if o.clock == nil {
+		o.clock = clock.New()
+	}
+	l.clock = o.clock
+
 	initialState := state{
 		last:     time.Time{},
 		sleepFor: 0,
 	}
+
 	atomic.StorePointer(&l.state, unsafe.Pointer(&initialState))
 	return l
+}
+
+// Per overrides the interval of the rate limit.
+//
+// The default interval is one second, so New(100) produces a one hundred per
+// second (100 Hz) rate limiter.
+//
+// New(2, Per(60*time.Second)) creates a 2 per minute rate limiter.
+//
+// The interval must be overridden for any rate limit
+func Per(interval time.Duration) Option {
+	return optionFunc(func(o *options) {
+		o.interval = interval
+	})
 }
 
 // WithClock returns an option for ratelimit.New that provides an alternate
 // Clock implementation, typically a mock Clock for testing.
 func WithClock(clock Clock) Option {
-	return func(l *limiter) {
-		l.clock = clock
-	}
+	return optionFunc(func(o *options) {
+		o.clock = clock
+	})
 }
 
 // WithoutSlack is an option for ratelimit.New that initializes the limiter
 // without any initial tolerance for bursts of traffic.
-var WithoutSlack Option = withoutSlackOption
-
-func withoutSlackOption(l *limiter) {
-	l.maxSlack = 0
-}
+var WithoutSlack = optionFunc(func(o *options) {
+	o.noSlack = true
+})
 
 // Take blocks to ensure that the time spent between multiple
 // Take calls is on average time.Second/rate.
