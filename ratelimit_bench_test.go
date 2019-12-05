@@ -2,10 +2,11 @@ package ratelimit
 
 import (
 	"fmt"
-	"github.com/uber-go/atomic"
 	"runtime"
 	"sync"
 	"testing"
+
+	"go.uber.org/atomic"
 )
 
 func BenchmarkRateLimiter(b *testing.B) {
