@@ -120,6 +120,11 @@ func (t *limiter) Take() time.Time {
 			continue
 		}
 
+// use the old state's sleepFor
+if oldState.sleepFor <0 {
+        newState.sleepFor = oldState.sleepFor
+}
+
 		// sleepFor calculates how much time we should sleep based on
 		// the perRequest budget and how long the last request took.
 		// Since the request may take longer than the budget, this number
