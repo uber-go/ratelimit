@@ -105,6 +105,7 @@ func withoutSlackOption(l *limiter) {
 func (t *limiter) Take() time.Time {
 	newState := state{}
 	taken := false
+	interval := time.Duration(0)
 	for !taken {
 		now := t.clock.Now()
 
@@ -113,6 +114,7 @@ func (t *limiter) Take() time.Time {
 
 		newState = state{}
 		newState.last = now
+		newState.sleepFor = oldState.sleepFor
 
 		// If this is our first request, then we allow it.
 		if oldState.last.IsZero() {
@@ -133,10 +135,11 @@ func (t *limiter) Take() time.Time {
 		}
 		if newState.sleepFor > 0 {
 			newState.last = newState.last.Add(newState.sleepFor)
+			interval, newState.sleepFor = newState.sleepFor, 0
 		}
 		taken = atomic.CompareAndSwapPointer(&t.state, previousStatePointer, unsafe.Pointer(&newState))
 	}
-	t.clock.Sleep(newState.sleepFor)
+	t.clock.Sleep(interval)
 	return newState.last
 }
 
