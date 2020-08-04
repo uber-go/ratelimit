@@ -8,7 +8,7 @@ import (
 
 	"go.uber.org/atomic"
 	"go.uber.org/ratelimit"
-	"go.uber.org/ratelimit/internal/clock"
+	"github.com/uber-go/ratelimit/central/clock"
 
 	"github.com/stretchr/testify/assert"
 )
