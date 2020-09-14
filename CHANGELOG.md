@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## Unreleased
 ### Changed
-- Switched from Glide to Go Modules
+- Switched from Glide to Go Modules.
 
 ## v0.1.0
 ### Fixed
