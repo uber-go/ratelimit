@@ -1,4 +1,4 @@
-#Directory to put `go install`ed binaries in.
+# Directory to put `go install`ed binaries in.
 export GOBIN ?= $(shell pwd)/bin
 
 GO_FILES := $(shell \
@@ -8,6 +8,12 @@ GO_FILES := $(shell \
 .PHONY: bench
 bench:
 	go test -bench=. ./...
+
+bin/golint: tools/go.mod
+	@cd tools && go install golang.org/x/lint/golint
+
+bin/staticcheck: tools/go.mod
+	@cd tools && go install honnef.co/go/tools/cmd/staticcheck
 
 .PHONY: build
 build:
@@ -25,16 +31,14 @@ gofmt:
 	@[ ! -s "$(FMT_LOG)" ] || (echo "gofmt failed:" | cat - $(FMT_LOG) && false)
 
 .PHONY: golint
-golint:
-	@cd tools && go install golang.org/x/lint/golint
+golint: bin/golint
 	@$(GOBIN)/golint ./...
 
 .PHONY: lint
 lint: gofmt golint staticcheck
 
 .PHONY: staticcheck
-staticcheck:
-	@cd tools && go install honnef.co/go/tools/cmd/staticcheck
+staticcheck: bin/staticcheck
 	@$(GOBIN)/staticcheck ./...
 
 .PHONY: test

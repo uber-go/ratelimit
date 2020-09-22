@@ -2,3 +2,5 @@
 /vendor
 cover.html
 cover.out
+
+*.swp
