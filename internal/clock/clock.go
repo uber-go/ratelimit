@@ -119,8 +119,10 @@ type Timer struct {
 	mock *Mock     // mock clock
 }
 
+// Next returns next tick time.
 func (t *Timer) Next() time.Time { return t.next }
 
+// Tick moves the clock to the next tick time.
 func (t *Timer) Tick() {
 	select {
 	case t.c <- t.next:

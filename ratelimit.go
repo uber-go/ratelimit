@@ -23,9 +23,10 @@ package ratelimit // import "go.uber.org/ratelimit"
 import (
 	"time"
 
-	"go.uber.org/ratelimit/internal/clock"
 	"sync/atomic"
 	"unsafe"
+
+	"go.uber.org/ratelimit/internal/clock"
 )
 
 // Note: This file is inspired by:
@@ -53,8 +54,7 @@ type state struct {
 }
 
 type limiter struct {
-	state   unsafe.Pointer
-	padding [56]byte // cache line size - state pointer size = 64 - 8; created to avoid false sharing
+	state unsafe.Pointer
 
 	perRequest time.Duration
 	maxSlack   time.Duration
