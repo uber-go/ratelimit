@@ -20,7 +20,7 @@
 
 package clock
 
-// timers represents a list of sortable timers.
+// Timers represents a list of sortable timers.
 type Timers []*Timer
 
 func (ts Timers) Len() int { return len(ts) }
@@ -33,10 +33,12 @@ func (ts Timers) Less(i, j int) bool {
 	return ts[i].Next().Before(ts[j].Next())
 }
 
+// Push implements container/heap interface.
 func (ts *Timers) Push(t interface{}) {
 	*ts = append(*ts, t.(*Timer))
 }
 
+// Pop implements container/heap interface.
 func (ts *Timers) Pop() interface{} {
 	t := (*ts)[len(*ts)-1]
 	*ts = (*ts)[:len(*ts)-1]

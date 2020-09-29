@@ -43,7 +43,7 @@ func TestUnlimited(t *testing.T) {
 	for i := 0; i < 1000; i++ {
 		rl.Take()
 	}
-	assert.Condition(t, func() bool { return time.Now().Sub(now) < 1*time.Millisecond }, "no artificial delay")
+	assert.Condition(t, func() bool { return time.Since(now) < 1*time.Millisecond }, "no artificial delay")
 }
 
 func TestRateLimiter(t *testing.T) {

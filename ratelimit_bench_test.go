@@ -17,7 +17,7 @@ func BenchmarkRateLimiter(b *testing.B) {
 			"atomic": New(b.N * 10000000),
 			"mutex":  newMutexBased(b.N * 10000000),
 		} {
-			for ng := 1; ng < 16; ng += 1 {
+			for ng := 1; ng < 16; ng++ {
 				runner(b, name, procs, ng, limiter, count)
 			}
 			for ng := 16; ng < 128; ng += 8 {
