@@ -44,6 +44,7 @@ jobs:
         run: make test
 
       - name: Upload coverage to codecov.io
+        if: matrix.latest
         uses: codecov/codecov-action@v1
 
       # TODO decide whether we want to benchmark on every run.
