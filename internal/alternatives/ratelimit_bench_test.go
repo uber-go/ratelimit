@@ -1,4 +1,4 @@
-package ratelimit
+package alternatives
 
 import (
 	"fmt"
@@ -7,15 +7,19 @@ import (
 	"testing"
 
 	"go.uber.org/atomic"
+
+	"go.uber.org/ratelimit"
+	atomicr "go.uber.org/ratelimit/internal/alternatives/atomic"
+	"go.uber.org/ratelimit/internal/alternatives/mutex"
 )
 
 func BenchmarkRateLimiter(b *testing.B) {
 	count := atomic.NewInt64(0)
 	for _, procs := range []int{1, 4, 8, 16} {
 		runtime.GOMAXPROCS(procs)
-		for name, limiter := range map[string]Limiter{
-			"atomic": New(b.N * 10000000),
-			"mutex":  newMutexBased(b.N * 10000000),
+		for name, limiter := range map[string]ratelimit.Limiter{
+			"atomic": atomicr.New(b.N * 10000000),
+			"mutex":  mutex.New(b.N * 10000000),
 		} {
 			for ng := 1; ng < 16; ng++ {
 				runner(b, name, procs, ng, limiter, count)
@@ -46,7 +50,7 @@ func BenchmarkRateLimiter(b *testing.B) {
 	fmt.Printf("\nmark%d\n", count.Load())
 }
 
-func runner(b *testing.B, name string, procs int, ng int, limiter Limiter, count *atomic.Int64) bool {
+func runner(b *testing.B, name string, procs int, ng int, limiter ratelimit.Limiter, count *atomic.Int64) bool {
 	return b.Run(fmt.Sprintf("type:%s-procs:%d-goroutines:%d", name, procs, ng), func(b *testing.B) {
 		var wg sync.WaitGroup
 		trigger := atomic.NewBool(true)

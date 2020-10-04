@@ -1,23 +1,24 @@
-package ratelimit
+package mutex
 
 import (
-	"go.uber.org/ratelimit/internal/clock"
 	"sync"
 	"time"
+
+	"go.uber.org/ratelimit/internal/clock"
 )
 
-type mutexLimiter struct {
+type limiter struct {
 	sync.Mutex
 	last       time.Time
 	sleepFor   time.Duration
 	perRequest time.Duration
 	maxSlack   time.Duration
-	clock      Clock
+	clock      clock.Clock
 }
 
 // New returns a Limiter that will limit to the given RPS.
-func newMutexBased(rate int, opts ...Option) Limiter {
-	l := &mutexLimiter{
+func New(rate int) *limiter {
+	l := &limiter{
 		perRequest: time.Second / time.Duration(rate),
 		maxSlack:   -10 * time.Second / time.Duration(rate),
 	}
@@ -29,7 +30,7 @@ func newMutexBased(rate int, opts ...Option) Limiter {
 
 // Take blocks to ensure that the time spent between multiple
 // Take calls is on average time.Second/rate.
-func (t *mutexLimiter) Take() time.Time {
+func (t *limiter) Take() time.Time {
 	t.Lock()
 	defer t.Unlock()
 

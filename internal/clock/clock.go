@@ -1,4 +1,4 @@
-// Copyright (c) 2016 Uber Technologies, Inc.
+// Copyright (c) 2016, 2020 Uber Technologies, Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -87,15 +87,13 @@ func (m *Mock) After(d time.Duration) <-chan time.Time {
 }
 
 // AfterFunc waits for the duration to elapse and then executes a function.
-// A Timer is returned that can be stopped.
-func (m *Mock) AfterFunc(d time.Duration, f func()) *Timer {
+func (m *Mock) AfterFunc(d time.Duration, f func()) {
 	t := m.Timer(d)
 	go func() {
 		<-t.c
 		f()
 	}()
 	nap()
-	return t
 }
 
 // Now returns the current wall time on the mock clock.
