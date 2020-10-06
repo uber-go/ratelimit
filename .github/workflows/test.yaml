@@ -1,0 +1,52 @@
+name: test
+
+on:
+  pull_request:
+    branches: ['*']
+
+jobs:
+  test:
+
+    name: Run tests
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        go: ["1.14.x", "1.15.x"]
+        include:
+        - go: 1.15.x
+          latest: true
+
+    steps:
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go }}
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Load cached dependencies
+        uses: actions/cache@v2
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Lint
+        if: matrix.latest
+        run: make lint
+
+      - name: Test
+        run: make test
+
+      - name: Upload coverage to codecov.io
+        if: matrix.latest
+        uses: codecov/codecov-action@v1
+
+      # TODO decide whether we want to benchmark on every run.
+      #  name: Benchmark
+      #  run: make bench
