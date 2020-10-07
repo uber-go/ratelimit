@@ -27,6 +27,7 @@ import (
 	"unsafe"
 
 	"go.uber.org/ratelimit/internal/clock"
+	"go.uber.org/ratelimit/internal/types"
 )
 
 // Note: This file is inspired by:
@@ -35,18 +36,12 @@ import (
 // Limiter is used to rate-limit some process, possibly across goroutines.
 // The process is expected to call Take() before every iteration, which
 // may block to throttle the goroutine.
-type Limiter interface {
-	// Take should block to make sure that the RPS is met.
-	Take() time.Time
-}
+type Limiter = types.Limiter
 
 // Clock is the minimum necessary interface to instantiate a rate limiter with
 // a clock or mock clock, compatible with clocks created using
 // github.com/andres-erbsen/clock.
-type Clock interface {
-	Now() time.Time
-	Sleep(time.Duration)
-}
+type Clock = types.Clock
 
 type state struct {
 	last     time.Time
