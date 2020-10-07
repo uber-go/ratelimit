@@ -28,7 +28,6 @@ import "time"
 // second is a mock clock which will only make forward progress when
 // programmatically adjusted.
 type Clock interface {
-	AfterFunc(d time.Duration, f func())
 	Now() time.Time
 	Sleep(d time.Duration)
 }

@@ -22,6 +22,8 @@ type runner interface {
 	// getClock returns the test clock.
 	getClock() ratelimit.Clock
 	// afterFunc executes a func at a given time.
+	// not using clock.AfterFunc because andres-erbsen/clock misses a nap there.
+	// TODO verify.
 	afterFunc(d time.Duration, fn func())
 }
 
@@ -52,7 +54,7 @@ func runTest(t *testing.T, fn func(runner)) {
 
 // startTaking tries to Take() on passed in limiters in a loop/goroutine.
 func (r *runnerImpl) startTaking(rls ...ratelimit.Limiter) {
-	go func() {
+	r.goWait(func() {
 		for {
 			for _, rl := range rls {
 				rl.Take()
@@ -64,7 +66,7 @@ func (r *runnerImpl) startTaking(rls ...ratelimit.Limiter) {
 			default:
 			}
 		}
-	}()
+	})
 }
 
 // assertCountAt asserts the limiters have Taken() a number of times at a given time.
@@ -86,7 +88,22 @@ func (r *runnerImpl) afterFunc(d time.Duration, fn func()) {
 	if d > r.maxDuration {
 		r.maxDuration = d
 	}
-	r.clock.AfterFunc(d, fn)
+
+	r.goWait(func() {
+		r.clock.Sleep(d)
+		fn()
+	})
+}
+
+// goWait runs a function in a goroutine and makes sure the gouritine was scheduled.
+func (r *runnerImpl) goWait(fn func()) {
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		wg.Done()
+		fn()
+	}()
+	wg.Wait()
 }
 
 func Example() {
@@ -136,7 +153,6 @@ func TestRateLimiter(t *testing.T) {
 		r.assertCountAt(2*time.Second, 200)
 		r.assertCountAt(3*time.Second, 300)
 	})
-
 }
 
 func TestDelayedRateLimiter(t *testing.T) {
@@ -158,5 +174,4 @@ func TestDelayedRateLimiter(t *testing.T) {
 
 		r.assertCountAt(30*time.Second, 1200)
 	})
-
 }
