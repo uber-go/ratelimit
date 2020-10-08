@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func ExampleRatelimit() {
+func Example() {
 	rl := ratelimit.New(100) // per second
 
 	prev := time.Now()
@@ -80,8 +80,6 @@ func TestRateLimiter(t *testing.T) {
 	})
 
 	clock.Add(4 * time.Second)
-
-	clock.Add(5 * time.Second)
 }
 
 func TestDelayedRateLimiter(t *testing.T) {
