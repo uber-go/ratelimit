@@ -13,6 +13,38 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+type runner struct {
+	wg     sync.WaitGroup
+	clock  *clock.Mock
+	count  atomic.Int32
+	doneCh chan struct{}
+}
+
+func runTest(t *testing.T, fn func(runner)) {
+	r := runner{
+		clock:  clock.NewMock(),
+		doneCh: make(chan struct{}),
+	}
+	defer close(r.doneCh)
+	defer r.wg.Wait()
+
+	fn(r)
+}
+
+func (r *runner) job(rl ratelimit.Limiter) {
+	go func() {
+		for {
+			rl.Take()
+			r.count.Inc()
+			select {
+			case <-r.doneCh:
+				return
+			default:
+			}
+		}
+	}()
+}
+
 func Example() {
 	rl := ratelimit.New(100) // per second
 
@@ -47,95 +79,69 @@ func TestUnlimited(t *testing.T) {
 }
 
 func TestRateLimiter(t *testing.T) {
-	var wg sync.WaitGroup
-	wg.Add(1)
-	defer wg.Wait()
+	runTest(t, func(r runner) {
+		rl := ratelimit.New(100, ratelimit.WithClock(r.clock), ratelimit.WithoutSlack)
 
-	clock := clock.NewMock()
-	rl := ratelimit.New(100, ratelimit.WithClock(clock), ratelimit.WithoutSlack)
+		// Create copious counts concurrently.
+		r.job(rl)
+		r.job(rl)
+		r.job(rl)
+		r.job(rl)
 
-	count := atomic.NewInt32(0)
+		r.clock.AfterFunc(1*time.Second, func() {
+			assert.InDelta(t, 100, r.count.Load(), 10, "count within rate limit")
+		})
 
-	// Until we're done...
-	done := make(chan struct{})
-	defer close(done)
+		r.clock.AfterFunc(2*time.Second, func() {
+			assert.InDelta(t, 200, r.count.Load(), 10, "count within rate limit")
+		})
 
-	// Create copious counts concurrently.
-	go job(rl, count, done)
-	go job(rl, count, done)
-	go job(rl, count, done)
-	go job(rl, count, done)
+		r.wg.Add(1)
+		r.clock.AfterFunc(3*time.Second, func() {
+			assert.InDelta(t, 300, r.count.Load(), 10, "count within rate limit")
+			r.wg.Done()
+		})
 
-	clock.AfterFunc(1*time.Second, func() {
-		assert.InDelta(t, 100, count.Load(), 10, "count within rate limit")
+		r.clock.Add(4 * time.Second)
 	})
 
-	clock.AfterFunc(2*time.Second, func() {
-		assert.InDelta(t, 200, count.Load(), 10, "count within rate limit")
-	})
-
-	clock.AfterFunc(3*time.Second, func() {
-		assert.InDelta(t, 300, count.Load(), 10, "count within rate limit")
-		wg.Done()
-	})
-
-	clock.Add(4 * time.Second)
 }
 
 func TestDelayedRateLimiter(t *testing.T) {
-	var wg sync.WaitGroup
-	wg.Add(1)
-	defer wg.Wait()
+	runTest(t, func(r runner) {
+		slow := ratelimit.New(10, ratelimit.WithClock(r.clock))
+		fast := ratelimit.New(100, ratelimit.WithClock(r.clock))
 
-	clock := clock.NewMock()
-	slow := ratelimit.New(10, ratelimit.WithClock(clock))
-	fast := ratelimit.New(100, ratelimit.WithClock(clock))
-
-	count := atomic.NewInt32(0)
-
-	// Until we're done...
-	done := make(chan struct{})
-	defer close(done)
-
-	// Run a slow job
-	go func() {
-		for {
-			slow.Take()
-			fast.Take()
-			count.Inc()
-			select {
-			case <-done:
-				return
-			default:
+		// Run a slow job
+		go func() {
+			for {
+				slow.Take()
+				fast.Take()
+				r.count.Inc()
+				select {
+				case <-r.doneCh:
+					return
+				default:
+				}
 			}
-		}
-	}()
+		}()
 
-	// Accumulate slack for 10 seconds,
-	clock.AfterFunc(20*time.Second, func() {
-		// Then start working.
-		go job(fast, count, done)
-		go job(fast, count, done)
-		go job(fast, count, done)
-		go job(fast, count, done)
+		// Accumulate slack for 10 seconds,
+		r.clock.AfterFunc(20*time.Second, func() {
+			// Then start working.
+			r.job(fast)
+			r.job(fast)
+			r.job(fast)
+			r.job(fast)
+		})
+
+		r.wg.Add(1)
+		r.clock.AfterFunc(30*time.Second, func() {
+			assert.InDelta(t, 1200, r.count.Load(), 10, "count within rate limit")
+			r.wg.Done()
+		})
+
+		r.clock.Add(40 * time.Second)
 	})
 
-	clock.AfterFunc(30*time.Second, func() {
-		assert.InDelta(t, 1200, count.Load(), 10, "count within rate limit")
-		wg.Done()
-	})
-
-	clock.Add(40 * time.Second)
-}
-
-func job(rl ratelimit.Limiter, count *atomic.Int32, done <-chan struct{}) {
-	for {
-		rl.Take()
-		count.Inc()
-		select {
-		case <-done:
-			return
-		default:
-		}
-	}
 }
