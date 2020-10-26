@@ -13,28 +13,50 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type runner struct {
-	wg     sync.WaitGroup
-	clock  *clock.Mock
-	count  atomic.Int32
-	doneCh chan struct{}
+type runner interface {
+	// startTaking tries to Take() on passed in limiters in a loop/goroutine.
+	startTaking(rls ...ratelimit.Limiter)
+	// assertCountAt asserts the limiters have Taken() a number of times at the given time.
+	// It's a thin wrapper around afterFunc to reduce boilerplate code.
+	assertCountAt(d time.Duration, count int)
+	// getClock returns the test clock.
+	getClock() ratelimit.Clock
+	// afterFunc executes a func at a given time.
+	afterFunc(d time.Duration, fn func())
+}
+
+type runnerImpl struct {
+	t *testing.T
+
+	clock *clock.Mock
+	count atomic.Int32
+	// maxDuration is the time we need to move into the future for a test.
+	// It's populated automatically based on assertCountAt/afterFunc.
+	maxDuration time.Duration
+	doneCh      chan struct{}
+	wg          sync.WaitGroup
 }
 
 func runTest(t *testing.T, fn func(runner)) {
-	r := runner{
+	r := runnerImpl{
+		t:      t,
 		clock:  clock.NewMock(),
 		doneCh: make(chan struct{}),
 	}
 	defer close(r.doneCh)
 	defer r.wg.Wait()
 
-	fn(r)
+	fn(&r)
+	r.clock.Add(r.maxDuration)
 }
 
-func (r *runner) job(rl ratelimit.Limiter) {
+// startTaking tries to Take() on passed in limiters in a loop/goroutine.
+func (r *runnerImpl) startTaking(rls ...ratelimit.Limiter) {
 	go func() {
 		for {
-			rl.Take()
+			for _, rl := range rls {
+				rl.Take()
+			}
 			r.count.Inc()
 			select {
 			case <-r.doneCh:
@@ -43,6 +65,28 @@ func (r *runner) job(rl ratelimit.Limiter) {
 			}
 		}
 	}()
+}
+
+// assertCountAt asserts the limiters have Taken() a number of times at a given time.
+func (r *runnerImpl) assertCountAt(d time.Duration, count int) {
+	r.wg.Add(1)
+	r.afterFunc(d, func() {
+		assert.InDelta(r.t, count, r.count.Load(), 10, "count within rate limit")
+		r.wg.Done()
+	})
+}
+
+// getClock return the test clock.
+func (r *runnerImpl) getClock() ratelimit.Clock {
+	return r.clock
+}
+
+// afterFunc executes a func at a given time.
+func (r *runnerImpl) afterFunc(d time.Duration, fn func()) {
+	if d > r.maxDuration {
+		r.maxDuration = d
+	}
+	r.clock.AfterFunc(d, fn)
 }
 
 func Example() {
@@ -80,68 +124,39 @@ func TestUnlimited(t *testing.T) {
 
 func TestRateLimiter(t *testing.T) {
 	runTest(t, func(r runner) {
-		rl := ratelimit.New(100, ratelimit.WithClock(r.clock), ratelimit.WithoutSlack)
+		rl := ratelimit.New(100, ratelimit.WithClock(r.getClock()), ratelimit.WithoutSlack)
 
 		// Create copious counts concurrently.
-		r.job(rl)
-		r.job(rl)
-		r.job(rl)
-		r.job(rl)
+		r.startTaking(rl)
+		r.startTaking(rl)
+		r.startTaking(rl)
+		r.startTaking(rl)
 
-		r.clock.AfterFunc(1*time.Second, func() {
-			assert.InDelta(t, 100, r.count.Load(), 10, "count within rate limit")
-		})
-
-		r.clock.AfterFunc(2*time.Second, func() {
-			assert.InDelta(t, 200, r.count.Load(), 10, "count within rate limit")
-		})
-
-		r.wg.Add(1)
-		r.clock.AfterFunc(3*time.Second, func() {
-			assert.InDelta(t, 300, r.count.Load(), 10, "count within rate limit")
-			r.wg.Done()
-		})
-
-		r.clock.Add(4 * time.Second)
+		r.assertCountAt(1*time.Second, 100)
+		r.assertCountAt(2*time.Second, 200)
+		r.assertCountAt(3*time.Second, 300)
 	})
 
 }
 
 func TestDelayedRateLimiter(t *testing.T) {
 	runTest(t, func(r runner) {
-		slow := ratelimit.New(10, ratelimit.WithClock(r.clock))
-		fast := ratelimit.New(100, ratelimit.WithClock(r.clock))
+		slow := ratelimit.New(10, ratelimit.WithClock(r.getClock()))
+		fast := ratelimit.New(100, ratelimit.WithClock(r.getClock()))
 
-		// Run a slow job
-		go func() {
-			for {
-				slow.Take()
-				fast.Take()
-				r.count.Inc()
-				select {
-				case <-r.doneCh:
-					return
-				default:
-				}
-			}
-		}()
+		// Run a slow startTaking
+		r.startTaking(slow, fast)
 
 		// Accumulate slack for 10 seconds,
-		r.clock.AfterFunc(20*time.Second, func() {
+		r.afterFunc(20*time.Second, func() {
 			// Then start working.
-			r.job(fast)
-			r.job(fast)
-			r.job(fast)
-			r.job(fast)
+			r.startTaking(fast)
+			r.startTaking(fast)
+			r.startTaking(fast)
+			r.startTaking(fast)
 		})
 
-		r.wg.Add(1)
-		r.clock.AfterFunc(30*time.Second, func() {
-			assert.InDelta(t, 1200, r.count.Load(), 10, "count within rate limit")
-			r.wg.Done()
-		})
-
-		r.clock.Add(40 * time.Second)
+		r.assertCountAt(30*time.Second, 1200)
 	})
 
 }
