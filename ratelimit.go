@@ -26,7 +26,7 @@ import (
 	"sync/atomic"
 	"unsafe"
 
-	"go.uber.org/ratelimit/internal/clock"
+	"github.com/andres-erbsen/clock"
 )
 
 // Note: This file is inspired by:

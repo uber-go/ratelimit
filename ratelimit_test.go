@@ -8,8 +8,8 @@ import (
 
 	"go.uber.org/atomic"
 	"go.uber.org/ratelimit"
-	"go.uber.org/ratelimit/internal/clock"
 
+	"github.com/andres-erbsen/clock"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -23,7 +23,6 @@ type runner interface {
 	getClock() ratelimit.Clock
 	// afterFunc executes a func at a given time.
 	// not using clock.AfterFunc because andres-erbsen/clock misses a nap there.
-	// TODO verify.
 	afterFunc(d time.Duration, fn func())
 }
 
