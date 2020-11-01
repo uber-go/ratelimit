@@ -64,21 +64,37 @@ type limiter struct {
 	clock      Clock
 }
 
-// Option configures a Limiter.
-type Option func(l *limiter)
+// config configures a limiter.
+type config struct {
+	maxSlack time.Duration
+	clock    Clock
+}
+
+// buildConfig combines defaults with options.
+func buildConfig(opts []option) config {
+	c := config{
+		maxSlack: 10,
+		clock:    clock.New(),
+	}
+
+	for _, opt := range opts {
+		opt(&c)
+	}
+	return c
+}
+
+// option configures a Limiter.
+type option func(l *config)
 
 // New returns a Limiter that will limit to the given RPS.
-func New(rate int, opts ...Option) Limiter {
+func New(rate int, opts ...option) Limiter {
+	config := buildConfig(opts)
 	l := &limiter{
 		perRequest: time.Second / time.Duration(rate),
-		maxSlack:   -10 * time.Second / time.Duration(rate),
+		maxSlack:   -1 * config.maxSlack * time.Second / time.Duration(rate),
+		clock:      config.clock,
 	}
-	for _, opt := range opts {
-		opt(l)
-	}
-	if l.clock == nil {
-		l.clock = clock.New()
-	}
+
 	initialState := state{
 		last:     time.Time{},
 		sleepFor: 0,
@@ -89,18 +105,16 @@ func New(rate int, opts ...Option) Limiter {
 
 // WithClock returns an option for ratelimit.New that provides an alternate
 // Clock implementation, typically a mock Clock for testing.
-func WithClock(clock Clock) Option {
-	return func(l *limiter) {
-		l.clock = clock
+func WithClock(clock Clock) option {
+	return func(c *config) {
+		c.clock = clock
 	}
 }
 
 // WithoutSlack is an option for ratelimit.New that initializes the limiter
 // without any initial tolerance for bursts of traffic.
-var WithoutSlack Option = withoutSlackOption
-
-func withoutSlackOption(l *limiter) {
-	l.maxSlack = 0
+var WithoutSlack option = func(c *config) {
+	c.maxSlack = 0
 }
 
 // Take blocks to ensure that the time spent between multiple
