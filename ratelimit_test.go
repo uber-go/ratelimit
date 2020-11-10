@@ -89,7 +89,11 @@ func (r *runnerImpl) afterFunc(d time.Duration, fn func()) {
 	}
 
 	r.goWait(func() {
-		r.clock.Sleep(d)
+		select {
+		case <-r.doneCh:
+			return
+		case <-r.clock.After(d):
+		}
 		fn()
 	})
 }
