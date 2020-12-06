@@ -15,7 +15,7 @@ type mutexLimiter struct {
 }
 
 // New returns a Limiter that will limit to the given RPS.
-func newMutexBased(rate int, opts ...option) Limiter {
+func newMutexBased(rate int, opts ...Option) Limiter {
 	config := buildConfig(opts)
 	l := &mutexLimiter{
 		perRequest: time.Second / time.Duration(rate),

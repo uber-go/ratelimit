@@ -71,7 +71,7 @@ type config struct {
 }
 
 // buildConfig combines defaults with options.
-func buildConfig(opts []option) config {
+func buildConfig(opts []Option) config {
 	c := config{
 		maxSlack: 10,
 		clock:    clock.New(),
@@ -83,11 +83,11 @@ func buildConfig(opts []option) config {
 	return c
 }
 
-// option configures a Limiter.
-type option func(l *config)
+// Option configures a Limiter.
+type Option func(l *config)
 
 // New returns a Limiter that will limit to the given RPS.
-func New(rate int, opts ...option) Limiter {
+func New(rate int, opts ...Option) Limiter {
 	config := buildConfig(opts)
 	l := &limiter{
 		perRequest: time.Second / time.Duration(rate),
@@ -103,17 +103,17 @@ func New(rate int, opts ...option) Limiter {
 	return l
 }
 
-// WithClock returns an option for ratelimit.New that provides an alternate
+// WithClock returns an Option for ratelimit.New that provides an alternate
 // Clock implementation, typically a mock Clock for testing.
-func WithClock(clock Clock) option {
+func WithClock(clock Clock) Option {
 	return func(c *config) {
 		c.clock = clock
 	}
 }
 
-// WithoutSlack is an option for ratelimit.New that initializes the limiter
+// WithoutSlack is an Option for ratelimit.New that initializes the limiter
 // without any initial tolerance for bursts of traffic.
-var WithoutSlack option = func(c *config) {
+var WithoutSlack Option = func(c *config) {
 	c.maxSlack = 0
 }
 
