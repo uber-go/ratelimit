@@ -78,13 +78,15 @@ func buildConfig(opts []Option) config {
 	}
 
 	for _, opt := range opts {
-		opt(&c)
+		opt.apply(&c)
 	}
 	return c
 }
 
-// Option configures a Limiter.
-type Option func(l *config)
+// option configures a Limiter.
+type Option interface {
+	apply(*config)
+}
 
 // New returns a Limiter that will limit to the given RPS.
 func New(rate int, opts ...Option) Limiter {
@@ -103,19 +105,29 @@ func New(rate int, opts ...Option) Limiter {
 	return l
 }
 
-// WithClock returns an Option for ratelimit.New that provides an alternate
+type clockOption struct {
+	clock Clock
+}
+
+func (o clockOption) apply(c *config) {
+	c.clock = o.clock
+}
+
+// WithClock returns an option for ratelimit.New that provides an alternate
 // Clock implementation, typically a mock Clock for testing.
 func WithClock(clock Clock) Option {
-	return func(c *config) {
-		c.clock = clock
-	}
+	return clockOption{clock: clock}
+}
+
+type slackOption int
+
+func (o slackOption) apply(c *config) {
+	c.maxSlack = time.Duration(o)
 }
 
 // WithoutSlack is an Option for ratelimit.New that initializes the limiter
 // without any initial tolerance for bursts of traffic.
-var WithoutSlack Option = func(c *config) {
-	c.maxSlack = 0
-}
+var WithoutSlack Option = slackOption(0)
 
 // Take blocks to ensure that the time spent between multiple
 // Take calls is on average time.Second/rate.
