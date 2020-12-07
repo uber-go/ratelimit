@@ -72,7 +72,7 @@ func (r *runnerImpl) startTaking(rls ...ratelimit.Limiter) {
 func (r *runnerImpl) assertCountAt(d time.Duration, count int) {
 	r.wg.Add(1)
 	r.afterFunc(d, func() {
-		assert.InDelta(r.t, count, r.count.Load(), 10, "count within rate limit")
+		assert.Equal(r.t, int32(count), r.count.Load(), "count not as expected")
 		r.wg.Done()
 	})
 }
