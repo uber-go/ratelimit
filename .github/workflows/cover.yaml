@@ -1,0 +1,36 @@
+name: cover
+
+on: [push]
+
+jobs:
+  test:
+
+    name: Upload coverage
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go }}
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Load cached dependencies
+        uses: actions/cache@v2
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Make coverage
+        if: matrix.latest
+        run: make cover
+
+      - name: Upload coverage to codecov.io
+        if: matrix.latest
+        uses: codecov/codecov-action@v1
