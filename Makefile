@@ -32,7 +32,7 @@ gofmt:
 
 .PHONY: golint
 golint: bin/golint
-	@$(GOBIN)/golint ./...
+	@$(GOBIN)/golint -set_exit_status ./...
 
 .PHONY: lint
 lint: gofmt golint staticcheck
