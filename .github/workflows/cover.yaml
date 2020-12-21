@@ -28,9 +28,7 @@ jobs:
         run: go mod download
 
       - name: Make coverage
-        if: matrix.latest
         run: make cover
 
       - name: Upload coverage to codecov.io
-        if: matrix.latest
         uses: codecov/codecov-action@v1
