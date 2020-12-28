@@ -29,7 +29,7 @@ func BenchmarkRateLimiter(b *testing.B) {
 			for ng := 512; ng < 1024; ng += 32 {
 				runner(b, name, procs, ng, limiter, count)
 			}
-			for ng := 1024; ng < 2048; ng += 8 {
+			for ng := 1024; ng < 2048; ng += 64 {
 				runner(b, name, procs, ng, limiter, count)
 			}
 			for ng := 2048; ng < 4096; ng += 128 {
