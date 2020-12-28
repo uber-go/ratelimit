@@ -83,7 +83,7 @@ func buildConfig(opts []Option) config {
 	return c
 }
 
-// option configures a Limiter.
+// Option configures a Limiter.
 type Option interface {
 	apply(*config)
 }
