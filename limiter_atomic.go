@@ -63,15 +63,21 @@ func newAtomicBased(rate int, opts ...Option) *atomicLimiter {
 // Take blocks to ensure that the time spent between multiple
 // Take calls is on average time.Second/rate.
 func (t *atomicLimiter) Take() time.Time {
-	newState := state{}
-	taken := false
+	var (
+		newState state
+		taken    bool
+		interval time.Duration
+	)
 	for !taken {
 		now := t.clock.Now()
 
 		previousStatePointer := atomic.LoadPointer(&t.state)
 		oldState := (*state)(previousStatePointer)
 
-		newState = state{}
+		newState = state{
+			last:     now,
+			sleepFor: oldState.sleepFor,
+		}
 		newState.last = now
 
 		// If this is our first request, then we allow it.
@@ -93,9 +99,10 @@ func (t *atomicLimiter) Take() time.Time {
 		}
 		if newState.sleepFor > 0 {
 			newState.last = newState.last.Add(newState.sleepFor)
+			interval, newState.sleepFor = newState.sleepFor, 0
 		}
 		taken = atomic.CompareAndSwapPointer(&t.state, previousStatePointer, unsafe.Pointer(&newState))
 	}
-	t.clock.Sleep(newState.sleepFor)
+	t.clock.Sleep(interval)
 	return newState.last
 }
