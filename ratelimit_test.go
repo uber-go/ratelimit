@@ -60,9 +60,10 @@ func runTest(t *testing.T, fn func(testRunner)) {
 	for _, tt := range implementations {
 		t.Run(tt.name, func(t *testing.T) {
 			r := runnerImpl{
-				t:      t,
-				clock:  clock.NewMock(),
-				doneCh: make(chan struct{}),
+				t:           t,
+				clock:       clock.NewMock(),
+				constructor: tt.constructor,
+				doneCh:      make(chan struct{}),
 			}
 			defer close(r.doneCh)
 			defer r.wg.Wait()
@@ -76,7 +77,7 @@ func runTest(t *testing.T, fn func(testRunner)) {
 // createLimiter builds a limiter with given options.
 func (r *runnerImpl) createLimiter(rate int, opts ...Option) Limiter {
 	opts = append(opts, WithClock(r.clock))
-	return New(rate, opts...)
+	return r.constructor(rate, opts...)
 }
 
 // startTaking tries to Take() on passed in limiters in a loop/goroutine.
