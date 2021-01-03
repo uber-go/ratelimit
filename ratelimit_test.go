@@ -179,3 +179,16 @@ func TestDelayedRateLimiter(t *testing.T) {
 		r.assertCountAt(30*time.Second, 1200)
 	})
 }
+
+func TestPer(t *testing.T) {
+	runTest(t, func(r runner) {
+		rl := r.createLimiter(7, ratelimit.WithoutSlack, ratelimit.Per(time.Minute))
+
+		r.startTaking(rl)
+		r.startTaking(rl)
+
+		r.assertCountAt(1*time.Second, 1)
+		r.assertCountAt(1*time.Minute, 8)
+		r.assertCountAt(2*time.Minute, 15)
+	})
+}

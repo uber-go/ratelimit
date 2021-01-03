@@ -38,7 +38,7 @@ type mutexLimiter struct {
 func newMutexBased(rate int, opts ...Option) *mutexLimiter {
 	config := buildConfig(opts)
 	l := &mutexLimiter{
-		perRequest: time.Second / time.Duration(rate),
+		perRequest: config.per / time.Duration(rate),
 		maxSlack:   -1 * config.maxSlack * time.Second / time.Duration(rate),
 		clock:      config.clock,
 	}

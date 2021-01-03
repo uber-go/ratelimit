@@ -47,7 +47,7 @@ type atomicLimiter struct {
 func newAtomicBased(rate int, opts ...Option) *atomicLimiter {
 	config := buildConfig(opts)
 	l := &atomicLimiter{
-		perRequest: time.Second / time.Duration(rate),
+		perRequest: config.per / time.Duration(rate),
 		maxSlack:   -1 * config.maxSlack * time.Second / time.Duration(rate),
 		clock:      config.clock,
 	}
