@@ -78,7 +78,6 @@ func (t *atomicLimiter) Take() time.Time {
 			last:     now,
 			sleepFor: oldState.sleepFor,
 		}
-		newState.last = now
 
 		// If this is our first request, then we allow it.
 		if oldState.last.IsZero() {
