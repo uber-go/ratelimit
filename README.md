@@ -1,4 +1,4 @@
-# Go rate limiter ![test][test-img]
+# Go rate limiter [![GoDoc][doc-img]][doc] [![Coverage Status][cov-img]][cov] ![test][test-img]
 
 This package provides a Golang implementation of the leaky-bucket rate limit algorithm.
 This implementation refills the bucket based on the time elapsed between
@@ -39,4 +39,8 @@ func main() {
 }
 ```
 
+[cov-img]: https://codecov.io/gh/uber-go/ratelimit/branch/master/graph/badge.svg?token=zhLeUjjrm2
+[cov]: https://codecov.io/gh/uber-go/ratelimit
+[doc-img]: https://pkg.go.dev/badge/go.uber.org/ratelimit
+[doc]: https://pkg.go.dev/go.uber.org/ratelimit
 [test-img]: https://github.com/uber-go/ratelimit/workflows/test/badge.svg
