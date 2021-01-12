@@ -192,3 +192,12 @@ func TestPer(t *testing.T) {
 		r.assertCountAt(2*time.Minute, 15)
 	})
 }
+
+func TestUnsafeLimiter(t *testing.T) {
+	now := time.Now()
+	rl := ratelimit.New(100, ratelimit.WithoutLock())
+	for i := 0; i < 1000; i++ {
+		rl.Take()
+	}
+	assert.Condition(t, func() bool { return time.Since(now) < 11*time.Second }, "no artificial delay")
+}
