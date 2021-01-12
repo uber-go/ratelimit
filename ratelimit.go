@@ -50,10 +50,15 @@ type config struct {
 	clock    Clock
 	maxSlack time.Duration
 	per      time.Duration
+	lock     bool
 }
 
 // New returns a Limiter that will limit to the given RPS.
 func New(rate int, opts ...Option) Limiter {
+	config := buildConfig(opts)
+	if !config.lock {
+		return newUnsafeBased(rate, opts...)
+	}
 	return newAtomicBased(rate, opts...)
 }
 
@@ -63,6 +68,7 @@ func buildConfig(opts []Option) config {
 		clock:    clock.New(),
 		maxSlack: 10,
 		per:      time.Second,
+		lock:     true,
 	}
 
 	for _, opt := range opts {
@@ -88,6 +94,17 @@ func (o clockOption) apply(c *config) {
 // Clock implementation, typically a mock Clock for testing.
 func WithClock(clock Clock) Option {
 	return clockOption{clock: clock}
+}
+
+type unLockOption struct {
+}
+
+func (uo unLockOption) apply(c *config) {
+	c.lock = false
+}
+
+func WithoutLock() Option {
+	return unLockOption{}
 }
 
 type slackOption int
