@@ -103,6 +103,7 @@ func (uo unLockOption) apply(c *config) {
 	c.lock = false
 }
 
+// WithoutLock returns an option for single thread(goroutine)
 func WithoutLock() Option {
 	return unLockOption{}
 }
