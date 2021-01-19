@@ -1,23 +1,21 @@
-package ratelimit_test
+package ratelimit
 
 import (
-	"fmt"
 	"sync"
 	"testing"
 	"time"
 
 	"go.uber.org/atomic"
-	"go.uber.org/ratelimit"
 
 	"github.com/andres-erbsen/clock"
 	"github.com/stretchr/testify/assert"
 )
 
-type runner interface {
+type testRunner interface {
 	// createLimiter builds a limiter with given options.
-	createLimiter(int, ...ratelimit.Option) ratelimit.Limiter
+	createLimiter(int, ...Option) Limiter
 	// startTaking tries to Take() on passed in limiters in a loop/goroutine.
-	startTaking(rls ...ratelimit.Limiter)
+	startTaking(rls ...Limiter)
 	// assertCountAt asserts the limiters have Taken() a number of times at the given time.
 	// It's a thin wrapper around afterFunc to reduce boilerplate code.
 	assertCountAt(d time.Duration, count int)
@@ -29,8 +27,9 @@ type runner interface {
 type runnerImpl struct {
 	t *testing.T
 
-	clock *clock.Mock
-	count atomic.Int32
+	clock       *clock.Mock
+	constructor func(int, ...Option) Limiter
+	count       atomic.Int32
 	// maxDuration is the time we need to move into the future for a test.
 	// It's populated automatically based on assertCountAt/afterFunc.
 	maxDuration time.Duration
@@ -38,27 +37,50 @@ type runnerImpl struct {
 	wg          sync.WaitGroup
 }
 
-func runTest(t *testing.T, fn func(runner)) {
-	r := runnerImpl{
-		t:      t,
-		clock:  clock.NewMock(),
-		doneCh: make(chan struct{}),
+func runTest(t *testing.T, fn func(testRunner)) {
+	impls := []struct {
+		name        string
+		constructor func(int, ...Option) Limiter
+	}{
+		{
+			name: "mutex",
+			constructor: func(rate int, opts ...Option) Limiter {
+				return newMutexBased(rate, opts...)
+			},
+		},
+		{
+			name: "atomic",
+			constructor: func(rate int, opts ...Option) Limiter {
+				return newAtomicBased(rate, opts...)
+			},
+		},
 	}
-	defer close(r.doneCh)
-	defer r.wg.Wait()
 
-	fn(&r)
-	r.clock.Add(r.maxDuration)
+	for _, tt := range impls {
+		t.Run(tt.name, func(t *testing.T) {
+			r := runnerImpl{
+				t:           t,
+				clock:       clock.NewMock(),
+				constructor: tt.constructor,
+				doneCh:      make(chan struct{}),
+			}
+			defer close(r.doneCh)
+			defer r.wg.Wait()
+
+			fn(&r)
+			r.clock.Add(r.maxDuration)
+		})
+	}
 }
 
 // createLimiter builds a limiter with given options.
-func (r *runnerImpl) createLimiter(rate int, opts ...ratelimit.Option) ratelimit.Limiter {
-	opts = append(opts, ratelimit.WithClock(r.clock))
-	return ratelimit.New(rate, opts...)
+func (r *runnerImpl) createLimiter(rate int, opts ...Option) Limiter {
+	opts = append(opts, WithClock(r.clock))
+	return r.constructor(rate, opts...)
 }
 
 // startTaking tries to Take() on passed in limiters in a loop/goroutine.
-func (r *runnerImpl) startTaking(rls ...ratelimit.Limiter) {
+func (r *runnerImpl) startTaking(rls ...Limiter) {
 	r.goWait(func() {
 		for {
 			for _, rl := range rls {
@@ -110,33 +132,9 @@ func (r *runnerImpl) goWait(fn func()) {
 	wg.Wait()
 }
 
-func Example() {
-	rl := ratelimit.New(100) // per second
-
-	prev := time.Now()
-	for i := 0; i < 10; i++ {
-		now := rl.Take()
-		if i > 0 {
-			fmt.Println(i, now.Sub(prev))
-		}
-		prev = now
-	}
-
-	// Output:
-	// 1 10ms
-	// 2 10ms
-	// 3 10ms
-	// 4 10ms
-	// 5 10ms
-	// 6 10ms
-	// 7 10ms
-	// 8 10ms
-	// 9 10ms
-}
-
 func TestUnlimited(t *testing.T) {
 	now := time.Now()
-	rl := ratelimit.NewUnlimited()
+	rl := NewUnlimited()
 	for i := 0; i < 1000; i++ {
 		rl.Take()
 	}
@@ -144,8 +142,8 @@ func TestUnlimited(t *testing.T) {
 }
 
 func TestRateLimiter(t *testing.T) {
-	runTest(t, func(r runner) {
-		rl := r.createLimiter(100, ratelimit.WithoutSlack)
+	runTest(t, func(r testRunner) {
+		rl := r.createLimiter(100, WithoutSlack)
 
 		// Create copious counts concurrently.
 		r.startTaking(rl)
@@ -160,14 +158,14 @@ func TestRateLimiter(t *testing.T) {
 }
 
 func TestDelayedRateLimiter(t *testing.T) {
-	runTest(t, func(r runner) {
-		slow := r.createLimiter(10, ratelimit.WithoutSlack)
-		fast := r.createLimiter(100, ratelimit.WithoutSlack)
+	runTest(t, func(r testRunner) {
+		slow := r.createLimiter(10, WithoutSlack)
+		fast := r.createLimiter(100, WithoutSlack)
 
 		// Run a slow startTaking
 		r.startTaking(slow, fast)
 
-		// Accumulate slack for 10 seconds,
+		// Accumulate slack for 20 seconds,
 		r.afterFunc(20*time.Second, func() {
 			// Then start working.
 			r.startTaking(fast)
@@ -181,8 +179,8 @@ func TestDelayedRateLimiter(t *testing.T) {
 }
 
 func TestPer(t *testing.T) {
-	runTest(t, func(r runner) {
-		rl := r.createLimiter(7, ratelimit.WithoutSlack, ratelimit.Per(time.Minute))
+	runTest(t, func(r testRunner) {
+		rl := r.createLimiter(7, WithoutSlack, Per(time.Minute))
 
 		r.startTaking(rl)
 		r.startTaking(rl)
