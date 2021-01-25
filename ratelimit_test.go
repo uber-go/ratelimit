@@ -162,12 +162,9 @@ func TestDelayedRateLimiter(t *testing.T) {
 		slow := r.createLimiter(10, WithoutSlack)
 		fast := r.createLimiter(100, WithoutSlack)
 
-		// Run a slow startTaking
 		r.startTaking(slow, fast)
 
-		// Accumulate slack for 20 seconds,
 		r.afterFunc(20*time.Second, func() {
-			// Then start working.
 			r.startTaking(fast)
 			r.startTaking(fast)
 			r.startTaking(fast)
@@ -188,5 +185,26 @@ func TestPer(t *testing.T) {
 		r.assertCountAt(1*time.Second, 1)
 		r.assertCountAt(1*time.Minute, 8)
 		r.assertCountAt(2*time.Minute, 15)
+	})
+}
+
+func TestSlack(t *testing.T) {
+	runTest(t, func(r testRunner) {
+		slow := r.createLimiter(10, WithoutSlack)
+		// Defaults to 10 slack.
+		fast := r.createLimiter(100)
+
+		r.startTaking(slow, fast)
+
+		r.afterFunc(2*time.Second, func() {
+			r.startTaking(fast)
+			r.startTaking(fast)
+		})
+
+		// limiter with 10hz dominates here - we're just at 10.
+		r.assertCountAt(1*time.Second, 10)
+		// limiter with 100hz dominates, so we're at 100 + 2*10,
+		// but we get extra 10 from accumulated slack
+		r.assertCountAt(3*time.Second, 130)
 	})
 }
