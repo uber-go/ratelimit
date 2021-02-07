@@ -202,7 +202,6 @@ func TestSlack(t *testing.T) {
 	//   - faster limiter running for 1 second
 	//   - slack accumulated by the faster limiter during the two seconds.
 	//     it was blocked by slower limiter.
-
 	tests := []struct {
 		msg  string
 		opt  []Option
@@ -214,10 +213,48 @@ func TestSlack(t *testing.T) {
 			want: 130,
 		},
 		{
+			msg: "slack of 10, like default",
+			opt: []Option{WithSlack(10)},
+			// 2*10 + 1*100 + 1*10 (slack)
+			want: 130,
+		},
+		{
+			msg: "slack of 20",
+			opt: []Option{WithSlack(20)},
+			// 2*10 + 1*100 + 1*20 (slack)
+			want: 140,
+		},
+		{
+			// Note this is bigger then the rate of the limiter.
+			msg: "slack of 150",
+			opt: []Option{WithSlack(150)},
+			// 2*10 + 1*100 + 1*150 (slack)
+			want: 270,
+		},
+		{
 			msg: "no option, defaults to 10, with per",
 			// 2*(10*2) + 1*(100*2) + 1*10 (slack)
 			opt:  []Option{Per(500 * time.Millisecond)},
 			want: 230,
+		},
+		{
+			msg: "slack of 10, like default, with per",
+			opt: []Option{WithSlack(10), Per(500 * time.Millisecond)},
+			// 2*(10*2) + 1*(100*2) + 1*10 (slack)
+			want: 230,
+		},
+		{
+			msg: "slack of 20, with per",
+			opt: []Option{WithSlack(20), Per(500 * time.Millisecond)},
+			// 2*(10*2) + 1*(100*2) + 1*20 (slack)
+			want: 240,
+		},
+		{
+			// Note this is bigger then the rate of the limiter.
+			msg: "slack of 150, with per",
+			opt: []Option{WithSlack(150), Per(500 * time.Millisecond)},
+			// 2*(10*2) + 1*(100*2) + 1*150 (slack)
+			want: 370,
 		},
 	}
 
@@ -240,5 +277,4 @@ func TestSlack(t *testing.T) {
 			})
 		})
 	}
-
 }

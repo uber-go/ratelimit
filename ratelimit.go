@@ -100,6 +100,13 @@ func (o slackOption) apply(c *config) {
 // previously "unspent" requests for future bursts of traffic.
 var WithoutSlack Option = slackOption(0)
 
+// WithSlack configures custom slack.
+// Slack allows the limiter to accumulate "unspent" requests
+// for future bursts of traffic.
+func WithSlack(slack int) Option {
+	return slackOption(slack)
+}
+
 type perOption time.Duration
 
 func (p perOption) apply(c *config) {
