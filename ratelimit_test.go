@@ -189,22 +189,56 @@ func TestPer(t *testing.T) {
 }
 
 func TestSlack(t *testing.T) {
-	runTest(t, func(r testRunner) {
-		slow := r.createLimiter(10, WithoutSlack)
-		// Defaults to 10 slack.
-		fast := r.createLimiter(100)
+	// To simulate slack, we combine two limiters.
+	// - First, we start a single goroutine with both of them,
+	//   during this time the slow limiter will dominate,
+	//   and allow the fast limiter to acumulate slack.
+	// - After 2 seconds, we start another goroutine with
+	//   only the faster limiter. This will allow it to max out,
+	//   and consume all the slack.
+	// - After 3 seconds, we look at the final result, and we expect,
+	//   a sum of:
+	//   - slower limiter running for 3 seconds
+	//   - faster limiter running for 1 second
+	//   - slack accumulated by the faster limiter during the two seconds.
+	//     it was blocked by slower limiter.
 
-		r.startTaking(slow, fast)
+	tests := []struct {
+		msg  string
+		opt  []Option
+		want int
+	}{
+		{
+			msg: "no option, defaults to 10",
+			// 2*10 + 1*100 + 1*10 (slack)
+			want: 130,
+		},
+		{
+			msg: "no option, defaults to 10, with per",
+			// 2*(10*2) + 1*(100*2) + 1*10 (slack)
+			opt:  []Option{Per(500 * time.Millisecond)},
+			want: 230,
+		},
+	}
 
-		r.afterFunc(2*time.Second, func() {
-			r.startTaking(fast)
-			r.startTaking(fast)
+	for _, tt := range tests {
+		t.Run(tt.msg, func(t *testing.T) {
+			runTest(t, func(r testRunner) {
+				slow := r.createLimiter(10, WithoutSlack)
+				fast := r.createLimiter(100, tt.opt...)
+
+				r.startTaking(slow, fast)
+
+				r.afterFunc(2*time.Second, func() {
+					r.startTaking(fast)
+					r.startTaking(fast)
+				})
+
+				// limiter with 10hz dominates here - we're always at 10.
+				r.assertCountAt(1*time.Second, 10)
+				r.assertCountAt(3*time.Second, tt.want)
+			})
 		})
+	}
 
-		// limiter with 10hz dominates here - we're just at 10.
-		r.assertCountAt(1*time.Second, 10)
-		// limiter with 100hz dominates, so we're at 100 + 2*10,
-		// but we get extra 10 from accumulated slack
-		r.assertCountAt(3*time.Second, 130)
-	})
 }
