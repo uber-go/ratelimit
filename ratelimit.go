@@ -47,9 +47,9 @@ type Clock interface {
 
 // config configures a limiter.
 type config struct {
-	clock    Clock
-	maxSlack time.Duration
-	per      time.Duration
+	clock Clock
+	slack int
+	per   time.Duration
 }
 
 // New returns a Limiter that will limit to the given RPS.
@@ -60,9 +60,9 @@ func New(rate int, opts ...Option) Limiter {
 // buildConfig combines defaults with options.
 func buildConfig(opts []Option) config {
 	c := config{
-		clock:    clock.New(),
-		maxSlack: 10,
-		per:      time.Second,
+		clock: clock.New(),
+		slack: 10,
+		per:   time.Second,
 	}
 
 	for _, opt := range opts {
@@ -93,7 +93,7 @@ func WithClock(clock Clock) Option {
 type slackOption int
 
 func (o slackOption) apply(c *config) {
-	c.maxSlack = time.Duration(o)
+	c.slack = int(o)
 }
 
 // WithoutSlack is an Option for ratelimit.New that initializes the limiter
