@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Switched from Glide to Go Modules.
 - Fix not working slack.
   [#60](https://github.com/uber-go/ratelimit/pull/60)
-- Allow configuring the limiter with custom slack
+- Allow configuring the limiter with custom slack.
   [#64](https://github.com/uber-go/ratelimit/pull/64)
-- Allow configuring the limiter per arbitrary time duration
+- Allow configuring the limiter per arbitrary time duration.
   [#54](https://github.com/uber-go/ratelimit/pull/54)
 
 
