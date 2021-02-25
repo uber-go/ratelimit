@@ -96,8 +96,8 @@ func (o slackOption) apply(c *config) {
 	c.slack = int(o)
 }
 
-// WithoutSlack is an Option for ratelimit.New that initializes the limiter
-// without any initial tolerance for bursts of traffic.
+// WithoutSlack configures the limiter to be strict and not to accumulate
+// previously "unspent" requests for future bursts of traffic.
 var WithoutSlack Option = slackOption(0)
 
 type perOption time.Duration
