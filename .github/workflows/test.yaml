@@ -13,9 +13,9 @@ jobs:
 
     strategy:
       matrix:
-        go: ["1.14.x", "1.15.x"]
+        go: ["1.15.x", "1.16.x"]
         include:
-        - go: 1.15.x
+        - go: 1.16.x
           latest: true
 
     steps:
