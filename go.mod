@@ -1,6 +1,6 @@
 module go.uber.org/ratelimit
 
-go 1.16
+go 1.14
 
 require (
 	github.com/andres-erbsen/clock v0.0.0-20160526145045-9e14626cd129
