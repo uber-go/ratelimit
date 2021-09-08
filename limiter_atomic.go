@@ -36,7 +36,7 @@ type atomicLimiter struct {
 	state unsafe.Pointer
 	//lint:ignore U1000 Padding is unused but it is crucial to maintain performance
 	// of this rate limiter in case of collocation with other frequently accessed memory.
-	padding [56]byte // cache line size - state pointer size = 64 - 8; created to avoid false sharing.
+	padding [64 - unsafe.Sizeof(unsafe.Pointer(nil))]byte // cache line size - state pointer size ; created to avoid false sharing.
 
 	perRequest time.Duration
 	maxSlack   time.Duration
