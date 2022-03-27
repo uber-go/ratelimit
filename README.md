@@ -39,8 +39,11 @@ func main() {
 }
 ```
 
+See [here][redit] for some historical context.
+
 [cov-img]: https://codecov.io/gh/uber-go/ratelimit/branch/master/graph/badge.svg?token=zhLeUjjrm2
 [cov]: https://codecov.io/gh/uber-go/ratelimit
 [doc-img]: https://pkg.go.dev/badge/go.uber.org/ratelimit
 [doc]: https://pkg.go.dev/go.uber.org/ratelimit
 [test-img]: https://github.com/uber-go/ratelimit/workflows/test/badge.svg
+[redit]: https://www.reddit.com/r/golang/comments/59k2bi/ubergoratelimit_a_golang_blocking_leakybucket/d99ob9q
