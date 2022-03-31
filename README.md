@@ -43,6 +43,10 @@ func main() {
 - What's the major diff v.s. https://pkg.go.dev/golang.org/x/time/rate? (based on #77)
 
   This ratelimiter was meant to have a (1) simple API and (2) minimal overheard. For more complex use-cases [x/time/rate] is a great choice.  See [here][redit] for historical context, and [here][bench] for benchmarks (from 2016).
+  
+- Why does example_test.go fail when I run it locally on Windows? (based on #80)
+
+Windows has some known issues with timers precision. See golang/go#44343. We don't expect to work around it.
 
 [cov-img]: https://codecov.io/gh/uber-go/ratelimit/branch/master/graph/badge.svg?token=zhLeUjjrm2
 [cov]: https://codecov.io/gh/uber-go/ratelimit
