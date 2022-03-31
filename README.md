@@ -46,7 +46,7 @@ func main() {
   
 - Why does example_test.go fail when I run it locally on Windows? (based on #80)
 
-Windows has some known issues with timers precision. See golang/go#44343. We don't expect to work around it.
+  Windows has some known issues with timers precision. See golang/go#44343. We don't expect to work around it.
 
 [cov-img]: https://codecov.io/gh/uber-go/ratelimit/branch/master/graph/badge.svg?token=zhLeUjjrm2
 [cov]: https://codecov.io/gh/uber-go/ratelimit
