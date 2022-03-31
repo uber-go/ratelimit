@@ -39,7 +39,10 @@ func main() {
 }
 ```
 
-See [here][redit] for some historical context.
+## FAQ: 
+- What's the major diff v.s. https://pkg.go.dev/golang.org/x/time/rate? (based on #77)
+
+  This ratelimiter was meant to have a (1) simple API and (2) minimal overheard. For more comples use-cases [x/time/rate] is a great choice.  See [here][redit] for historical context, and [here][bench] for benchmarks (from 2016).
 
 [cov-img]: https://codecov.io/gh/uber-go/ratelimit/branch/master/graph/badge.svg?token=zhLeUjjrm2
 [cov]: https://codecov.io/gh/uber-go/ratelimit
@@ -47,3 +50,5 @@ See [here][redit] for some historical context.
 [doc]: https://pkg.go.dev/go.uber.org/ratelimit
 [test-img]: https://github.com/uber-go/ratelimit/workflows/test/badge.svg
 [redit]: https://www.reddit.com/r/golang/comments/59k2bi/ubergoratelimit_a_golang_blocking_leakybucket/d99ob9q
+[x/time/rate]: https://pkg.go.dev/golang.org/x/time/rate
+[bench]: https://gist.github.com/prashantv/26016a7dbc6fc1ec52d8c2b6591f3582
