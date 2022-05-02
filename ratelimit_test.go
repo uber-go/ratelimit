@@ -121,7 +121,7 @@ func (r *runnerImpl) afterFunc(d time.Duration, fn func()) {
 	})
 }
 
-// goWait runs a function in a goroutine and makes sure the gouritine was scheduled.
+// goWait runs a function in a goroutine and makes sure the goroutine was scheduled.
 func (r *runnerImpl) goWait(fn func()) {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
@@ -192,7 +192,7 @@ func TestSlack(t *testing.T) {
 	// To simulate slack, we combine two limiters.
 	// - First, we start a single goroutine with both of them,
 	//   during this time the slow limiter will dominate,
-	//   and allow the fast limiter to acumulate slack.
+	//   and allow the fast limiter to accumulate slack.
 	// - After 2 seconds, we start another goroutine with
 	//   only the faster limiter. This will allow it to max out,
 	//   and consume all the slack.
