@@ -14,8 +14,9 @@ func BenchmarkRateLimiter(b *testing.B) {
 	for _, procs := range []int{1, 4, 8, 16} {
 		runtime.GOMAXPROCS(procs)
 		for name, limiter := range map[string]Limiter{
-			"atomic": New(b.N * 10000000),
-			"mutex":  newMutexBased(b.N * 10000000),
+			"atomic":       newAtomicBased(b.N * 1000000000000),
+			"atomic_int64": New(b.N * 1000000000000),
+			"mutex":        newMutexBased(b.N * 1000000000000),
 		} {
 			for ng := 1; ng < 16; ng++ {
 				runner(b, name, procs, ng, limiter, count)
@@ -47,7 +48,9 @@ func BenchmarkRateLimiter(b *testing.B) {
 }
 
 func runner(b *testing.B, name string, procs int, ng int, limiter Limiter, count *atomic.Int64) bool {
-	return b.Run(fmt.Sprintf("type:%s-procs:%d-goroutines:%d", name, procs, ng), func(b *testing.B) {
+	return b.Run(fmt.Sprintf("type:%s;max_procs:%d;goroutines:%d", name, procs, ng), func(b *testing.B) {
+		b.ReportAllocs()
+
 		var wg sync.WaitGroup
 		trigger := atomic.NewBool(true)
 		n := b.N
