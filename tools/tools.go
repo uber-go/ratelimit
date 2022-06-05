@@ -25,6 +25,8 @@ package tools
 
 import (
 	// Tools we use during development.
+	_ "github.com/storozhukBM/benchart"
 	_ "golang.org/x/lint/golint"
+	_ "golang.org/x/perf/cmd/benchstat"
 	_ "honnef.co/go/tools/cmd/staticcheck"
 )
