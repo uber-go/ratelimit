@@ -7,7 +7,7 @@ import (
 
 	"go.uber.org/atomic"
 
-	"github.com/andres-erbsen/clock"
+	"github.com/benbjohnson/clock"
 	"github.com/stretchr/testify/assert"
 )
 
