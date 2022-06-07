@@ -10,22 +10,10 @@ jobs:
     name: Benchmark
     runs-on: ubuntu-latest
     steps:
-      - name: Setup Go
-        uses: actions/setup-go@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
         with:
-          go-version: ${{ matrix.go }}
-
-      - name: Checkout code
-        uses: actions/checkout@v2
-
-      - name: Load cached dependencies
-        uses: actions/cache@v2
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-
-      - name: Download dependencies
-        run: go mod download
-
+          check-latest: true
+          cache: true
       - name: Benchmark
         run: make bench
