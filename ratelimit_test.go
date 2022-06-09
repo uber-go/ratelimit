@@ -54,23 +54,13 @@ func runTest(t *testing.T, fn func(testRunner)) {
 				return newAtomicBased(rate, opts...)
 			},
 		},
-		{
-			name: "atomic_int64",
-			constructor: func(rate int, opts ...Option) Limiter {
-				return newAtomicInt64Based(rate, opts...)
-			},
-		},
 	}
 
 	for _, tt := range impls {
 		t.Run(tt.name, func(t *testing.T) {
-			// Set a non-default time.Time since some limiters (int64 in particular) use
-			// the default value as "non-initialized" state.
-			clockMock := clock.NewMock()
-			clockMock.Set(time.Now())
 			r := runnerImpl{
 				t:           t,
-				clock:       clockMock,
+				clock:       clock.NewMock(),
 				constructor: tt.constructor,
 				doneCh:      make(chan struct{}),
 			}
