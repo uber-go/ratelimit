@@ -7,9 +7,17 @@ import (
 
 	"go.uber.org/atomic"
 
-	"github.com/benbjohnson/clock"
 	"github.com/stretchr/testify/assert"
 )
+
+func (tt *testTime) Now() time.Time {
+	return tt.now()
+}
+
+func (tt *testTime) Sleep(duration time.Duration) {
+	timer, _, _ := tt.newTimer(duration)
+	<-timer
+}
 
 type testRunner interface {
 	// createLimiter builds a limiter with given options.
@@ -27,7 +35,7 @@ type testRunner interface {
 type runnerImpl struct {
 	t *testing.T
 
-	clock       *clock.Mock
+	clock       *testTime
 	constructor func(int, ...Option) Limiter
 	count       atomic.Int32
 	// maxDuration is the time we need to move into the future for a test.
@@ -54,13 +62,19 @@ func runTest(t *testing.T, fn func(testRunner)) {
 				return newAtomicBased(rate, opts...)
 			},
 		},
+		{
+			name: "atomic_int64",
+			constructor: func(rate int, opts ...Option) Limiter {
+				return newAtomicInt64Based(rate, opts...)
+			},
+		},
 	}
 
 	for _, tt := range impls {
 		t.Run(tt.name, func(t *testing.T) {
 			r := runnerImpl{
 				t:           t,
-				clock:       clock.NewMock(),
+				clock:       makeTestTime(),
 				constructor: tt.constructor,
 				doneCh:      make(chan struct{}),
 			}
@@ -68,7 +82,18 @@ func runTest(t *testing.T, fn func(testRunner)) {
 			defer r.wg.Wait()
 
 			fn(&r)
-			r.clock.Add(r.maxDuration)
+			go func() {
+				move := func() {
+					defer func() {
+						_ = recover()
+						time.Sleep(10 * time.Millisecond)
+					}()
+					r.clock.advanceToTimer()
+				}
+				for {
+					move()
+				}
+			}()
 		})
 	}
 }
@@ -86,6 +111,7 @@ func (r *runnerImpl) startTaking(rls ...Limiter) {
 			for _, rl := range rls {
 				rl.Take()
 			}
+			r.clock.advance(time.Nanosecond)
 			r.count.Inc()
 			select {
 			case <-r.doneCh:
@@ -110,14 +136,14 @@ func (r *runnerImpl) afterFunc(d time.Duration, fn func()) {
 	if d > r.maxDuration {
 		r.maxDuration = d
 	}
-
+	timer, _, _ := r.clock.newTimer(d)
 	r.goWait(func() {
 		select {
 		case <-r.doneCh:
 			return
-		case <-r.clock.After(d):
+		case <-timer:
+			fn()
 		}
-		fn()
 	})
 }
 
@@ -133,6 +159,7 @@ func (r *runnerImpl) goWait(fn func()) {
 }
 
 func TestUnlimited(t *testing.T) {
+	t.Parallel()
 	now := time.Now()
 	rl := NewUnlimited()
 	for i := 0; i < 1000; i++ {
@@ -142,6 +169,7 @@ func TestUnlimited(t *testing.T) {
 }
 
 func TestRateLimiter(t *testing.T) {
+	t.Parallel()
 	runTest(t, func(r testRunner) {
 		rl := r.createLimiter(100, WithoutSlack)
 
@@ -158,6 +186,7 @@ func TestRateLimiter(t *testing.T) {
 }
 
 func TestDelayedRateLimiter(t *testing.T) {
+	t.Parallel()
 	runTest(t, func(r testRunner) {
 		slow := r.createLimiter(10, WithoutSlack)
 		fast := r.createLimiter(100, WithoutSlack)
@@ -176,6 +205,7 @@ func TestDelayedRateLimiter(t *testing.T) {
 }
 
 func TestPer(t *testing.T) {
+	t.Parallel()
 	runTest(t, func(r testRunner) {
 		rl := r.createLimiter(7, WithoutSlack, Per(time.Minute))
 
@@ -189,6 +219,7 @@ func TestPer(t *testing.T) {
 }
 
 func TestSlack(t *testing.T) {
+	t.Parallel()
 	// To simulate slack, we combine two limiters.
 	// - First, we start a single goroutine with both of them,
 	//   during this time the slow limiter will dominate,
