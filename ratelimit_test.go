@@ -226,29 +226,30 @@ func TestInitial(t *testing.T) {
 				rl := r.createLimiter(10, tt.opts...)
 
 				var (
-					clk            = r.getClock()
-					prev time.Time = clk.Now()
+					clk  = r.getClock()
+					prev = clk.Now()
 
-					results         []time.Duration
-					startWg, doneWg sync.WaitGroup
+					results = make(chan time.Time)
+					have    []time.Duration
+					startWg sync.WaitGroup
 				)
 				startWg.Add(3)
-				doneWg.Add(3)
 
 				for i := 0; i < 3; i++ {
 					go func() {
 						startWg.Done()
-						ts := rl.Take()
-						// Below changes while "racy" should be synchronized by the limiter.
-						results = append(results, ts.Sub(prev))
-						prev = ts
-						doneWg.Done()
+						results <- rl.Take()
 					}()
 				}
 
 				startWg.Wait()
 				clk.Add(time.Second)
-				doneWg.Wait()
+
+				for i := 0; i < 3; i++ {
+					ts := <-results
+					have = append(have, ts.Sub(prev))
+					prev = ts
+				}
 
 				assert.Equal(t,
 					[]time.Duration{
@@ -256,7 +257,7 @@ func TestInitial(t *testing.T) {
 						time.Millisecond * 100,
 						time.Millisecond * 100,
 					},
-					results,
+					have,
 					"bad timestamps for inital takes",
 				)
 			})
