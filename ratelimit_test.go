@@ -143,6 +143,7 @@ func (r *runnerImpl) goWait(fn func()) {
 }
 
 func TestUnlimited(t *testing.T) {
+	t.Parallel()
 	now := time.Now()
 	rl := NewUnlimited()
 	for i := 0; i < 1000; i++ {
@@ -152,6 +153,7 @@ func TestUnlimited(t *testing.T) {
 }
 
 func TestRateLimiter(t *testing.T) {
+	t.Parallel()
 	runTest(t, func(r testRunner) {
 		rl := r.createLimiter(100, WithoutSlack)
 
@@ -168,6 +170,7 @@ func TestRateLimiter(t *testing.T) {
 }
 
 func TestDelayedRateLimiter(t *testing.T) {
+	t.Parallel()
 	runTest(t, func(r testRunner) {
 		slow := r.createLimiter(10, WithoutSlack)
 		fast := r.createLimiter(100, WithoutSlack)
@@ -186,6 +189,7 @@ func TestDelayedRateLimiter(t *testing.T) {
 }
 
 func TestPer(t *testing.T) {
+	t.Parallel()
 	runTest(t, func(r testRunner) {
 		rl := r.createLimiter(7, WithoutSlack, Per(time.Minute))
 
@@ -199,6 +203,7 @@ func TestPer(t *testing.T) {
 }
 
 func TestSlack(t *testing.T) {
+	t.Parallel()
 	// To simulate slack, we combine two limiters.
 	// - First, we start a single goroutine with both of them,
 	//   during this time the slow limiter will dominate,
