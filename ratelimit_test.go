@@ -20,6 +20,7 @@ func (tt *testTime) Sleep(duration time.Duration) {
 }
 
 type testRunner interface {
+	getName() string
 	// createLimiter builds a limiter with given options.
 	createLimiter(int, ...Option) Limiter
 	// startTaking tries to Take() on passed in limiters in a loop/goroutine.
@@ -31,12 +32,13 @@ type testRunner interface {
 	// not using clock.AfterFunc because andres-erbsen/clock misses a nap there.
 	afterFunc(d time.Duration, fn func())
 	// some tests want raw access to the clock.
-	getClock() *clock.Mock
+	getClock() *testTime
 }
 
 type runnerImpl struct {
 	t *testing.T
 
+	name        string
 	clock       *testTime
 	constructor func(int, ...Option) Limiter
 	count       atomic.Int32
@@ -76,6 +78,7 @@ func runTest(t *testing.T, fn func(testRunner)) {
 		t.Run(tt.name, func(t *testing.T) {
 			r := runnerImpl{
 				t:           t,
+				name:        tt.name,
 				clock:       makeTestTime(),
 				constructor: tt.constructor,
 				doneCh:      make(chan struct{}),
@@ -106,7 +109,11 @@ func (r *runnerImpl) createLimiter(rate int, opts ...Option) Limiter {
 	return r.constructor(rate, opts...)
 }
 
-func (r *runnerImpl) getClock() *clock.Mock {
+func (r *runnerImpl) getName() string {
+	return r.name
+}
+
+func (r *runnerImpl) getClock() *testTime {
 	return r.clock
 }
 
@@ -263,7 +270,7 @@ func TestInitial(t *testing.T) {
 				}
 
 				startWg.Wait()
-				clk.Add(time.Second)
+				clk.advance(time.Second)
 
 				for i := 0; i < 3; i++ {
 					ts := <-results
@@ -278,7 +285,7 @@ func TestInitial(t *testing.T) {
 						time.Millisecond * 100,
 					},
 					have,
-					"bad timestamps for inital takes",
+					"bad timestamps for initial takes of "+r.getName(),
 				)
 			})
 		})
