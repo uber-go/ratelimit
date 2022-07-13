@@ -66,10 +66,10 @@ func (t *atomicInt64Limiter) Take() time.Time {
 		timeOfNextPermissionIssue := atomic.LoadInt64(&t.state)
 
 		switch {
-		case timeOfNextPermissionIssue == 0:
-			// If this is our first request, then we allow it.
+		case timeOfNextPermissionIssue == 0 || (t.maxSlack == 0 && now-timeOfNextPermissionIssue > int64(t.perRequest)):
+			// if this is our first call or t.maxSlack == 0 we need to shrink issue time to now
 			newTimeOfNextPermissionIssue = now
-		case now-timeOfNextPermissionIssue > int64(t.maxSlack):
+		case t.maxSlack > 0 && now-timeOfNextPermissionIssue > int64(t.maxSlack):
 			// a lot of nanoseconds passed since the last Take call
 			// we will limit max accumulated time to maxSlack
 			newTimeOfNextPermissionIssue = now - int64(t.maxSlack)
@@ -82,9 +82,6 @@ func (t *atomicInt64Limiter) Take() time.Time {
 			break
 		}
 	}
-	nanosToSleepUntilOurPermissionIsIssued := newTimeOfNextPermissionIssue - now
-	if nanosToSleepUntilOurPermissionIsIssued > 0 {
-		t.clock.Sleep(time.Duration(nanosToSleepUntilOurPermissionIsIssued))
-	}
+	t.clock.Sleep(time.Duration(newTimeOfNextPermissionIssue - now))
 	return time.Unix(0, newTimeOfNextPermissionIssue)
 }
