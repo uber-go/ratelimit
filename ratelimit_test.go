@@ -260,6 +260,20 @@ func TestInitial(t *testing.T) {
 					have    []time.Duration
 					startWg sync.WaitGroup
 				)
+
+				go func() {
+					move := func() {
+						defer func() {
+							_ = recover()
+							time.Sleep(10 * time.Millisecond)
+						}()
+						r.getClock().advanceToTimer()
+					}
+					for {
+						move()
+					}
+				}()
+
 				startWg.Add(3)
 
 				for i := 0; i < 3; i++ {
@@ -268,9 +282,7 @@ func TestInitial(t *testing.T) {
 						results <- rl.Take()
 					}()
 				}
-
 				startWg.Wait()
-				clk.advance(time.Second)
 
 				for i := 0; i < 3; i++ {
 					ts := <-results
