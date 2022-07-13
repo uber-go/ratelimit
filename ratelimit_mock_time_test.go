@@ -6,11 +6,6 @@ the mechanism used by Ian Lance Taylor in https://github.com/golang/time project
 https://github.com/golang/time/commit/579cf78fd858857c0d766e0d63eb2b0ccf29f436
 
 Modified parts:
- - advanceUnlocked method uses in-place filtering of timers
-   instead of a full copy on every remove.
-   Since we have 100s of timers in our tests current linear
-   the complexity of this operation is OK
-   If going to have 1000s in the future, we can use heap to store timers.
  - advanceUnlocked method yields the processor, after every timer triggering,
    allowing other goroutines to run
 */
@@ -72,26 +67,25 @@ func (tt *testTime) advance(dur time.Duration) {
 
 // advanceUnlock advances the fake time, assuming it is already locked.
 func (tt *testTime) advanceUnlocked(dur time.Duration) {
-	tt.cur = tt.cur.Add(dur)
 
+	tt.cur = tt.cur.Add(dur)
 	i := 0
-	j := 0
 	for i < len(tt.timers) {
 		if tt.timers[i].when.After(tt.cur) {
-			if i != j {
-				tt.timers[j] = tt.timers[i]
-			}
 			i++
-			j++
 		} else {
 			tt.timers[i].ch <- tt.cur
-			for i := 0; i < 16; i++ {
+			// calculate how many goroutines we currently have in runtime
+			// and yield the processor, after every timer triggering,
+			// allowing all other goroutines to run
+			numOfAllRunningGoroutines := runtime.NumGoroutine()
+			for i := 0; i < numOfAllRunningGoroutines; i++ {
 				runtime.Gosched()
 			}
-			i++
+			copy(tt.timers[i:], tt.timers[i+1:])
+			tt.timers = tt.timers[:len(tt.timers)-1]
 		}
 	}
-	tt.timers = tt.timers[0:j]
 }
 
 // advanceToTimer advances the time to the next timer.
