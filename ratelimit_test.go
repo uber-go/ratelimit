@@ -22,6 +22,8 @@ type testRunner interface {
 	// afterFunc executes a func at a given time.
 	// not using clock.AfterFunc because andres-erbsen/clock misses a nap there.
 	afterFunc(d time.Duration, fn func())
+	// some tests want raw access to the clock.
+	getClock() *clock.Mock
 }
 
 type runnerImpl struct {
@@ -87,6 +89,10 @@ func runTest(t *testing.T, fn func(testRunner)) {
 func (r *runnerImpl) createLimiter(rate int, opts ...Option) Limiter {
 	opts = append(opts, WithClock(r.clock))
 	return r.constructor(rate, opts...)
+}
+
+func (r *runnerImpl) getClock() *clock.Mock {
+	return r.clock
 }
 
 // startTaking tries to Take() on passed in limiters in a loop/goroutine.
@@ -200,6 +206,67 @@ func TestPer(t *testing.T) {
 		r.assertCountAt(1*time.Minute, 8)
 		r.assertCountAt(2*time.Minute, 15)
 	})
+}
+
+// TestInitial verifies that the initial sequence is scheduled as expected.
+func TestInitial(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		msg  string
+		opts []Option
+	}{
+		{
+			msg: "With Slack",
+		},
+		{
+			msg:  "Without Slack",
+			opts: []Option{WithoutSlack},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.msg, func(t *testing.T) {
+			runTest(t, func(r testRunner) {
+				rl := r.createLimiter(10, tt.opts...)
+
+				var (
+					clk  = r.getClock()
+					prev = clk.Now()
+
+					results = make(chan time.Time)
+					have    []time.Duration
+					startWg sync.WaitGroup
+				)
+				startWg.Add(3)
+
+				for i := 0; i < 3; i++ {
+					go func() {
+						startWg.Done()
+						results <- rl.Take()
+					}()
+				}
+
+				startWg.Wait()
+				clk.Add(time.Second)
+
+				for i := 0; i < 3; i++ {
+					ts := <-results
+					have = append(have, ts.Sub(prev))
+					prev = ts
+				}
+
+				assert.Equal(t,
+					[]time.Duration{
+						0,
+						time.Millisecond * 100,
+						time.Millisecond * 100,
+					},
+					have,
+					"bad timestamps for inital takes",
+				)
+			})
+		})
+	}
 }
 
 func TestSlack(t *testing.T) {
