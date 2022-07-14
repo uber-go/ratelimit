@@ -6,6 +6,9 @@ the mechanism used by Ian Lance Taylor in https://github.com/golang/time project
 https://github.com/golang/time/commit/579cf78fd858857c0d766e0d63eb2b0ccf29f436
 
 Modified parts:
+ - timers are sorted on every addition, and then we relly of that order,
+   we could use heap data structure, but sorting is OK for now.
+ - advance accepts backoffDuration to sleep without lock held after every timer triggering
  - advanceUnlocked method yields the processor, after every timer triggering,
    allowing other goroutines to run
 */
