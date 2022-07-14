@@ -15,7 +15,7 @@ func (tt *testTime) Now() time.Time {
 }
 
 func (tt *testTime) Sleep(duration time.Duration) {
-	timer, _, _ := tt.newTimer(duration)
+	timer, _ := tt.newTimer(duration)
 	<-timer
 }
 
@@ -87,11 +87,7 @@ func runTest(t *testing.T, fn func(testRunner)) {
 			defer r.wg.Wait()
 
 			fn(&r)
-			go func() {
-				for {
-					r.clock.advanceToTimer()
-				}
-			}()
+			r.clock.advanceFor(r.maxDuration)
 		})
 	}
 }
@@ -142,7 +138,7 @@ func (r *runnerImpl) afterFunc(d time.Duration, fn func()) {
 	if d > r.maxDuration {
 		r.maxDuration = d
 	}
-	timer, _, _ := r.clock.newTimer(d)
+	timer, _ := r.clock.newTimer(d)
 	r.goWait(func() {
 		select {
 		case <-r.doneCh:
@@ -254,14 +250,7 @@ func TestInitial(t *testing.T) {
 					startWg sync.WaitGroup
 				)
 
-				go func() {
-					for {
-						r.getClock().advanceToTimer()
-					}
-				}()
-
 				startWg.Add(3)
-
 				for i := 0; i < 3; i++ {
 					go func() {
 						startWg.Done()
@@ -269,6 +258,8 @@ func TestInitial(t *testing.T) {
 					}()
 				}
 				startWg.Wait()
+
+				r.getClock().advanceFor(time.Second)
 
 				for i := 0; i < 3; i++ {
 					ts := <-results

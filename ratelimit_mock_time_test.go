@@ -46,7 +46,7 @@ func (tt *testTime) now() time.Time {
 // newTimer creates a fake timer. It returns the channel,
 // a function to stop the timer (which we don't care about),
 // and a function to advance to the next timer.
-func (tt *testTime) newTimer(dur time.Duration) (<-chan time.Time, func() bool, func()) {
+func (tt *testTime) newTimer(dur time.Duration) (<-chan time.Time, func() bool) {
 	tt.mu.Lock()
 	defer tt.mu.Unlock()
 	ch := make(chan time.Time, 1)
@@ -55,7 +55,35 @@ func (tt *testTime) newTimer(dur time.Duration) (<-chan time.Time, func() bool, 
 		ch:   ch,
 	}
 	tt.timers = append(tt.timers, timer)
-	return ch, func() bool { return true }, tt.advanceToTimer
+	return ch, func() bool { return true }
+}
+
+func (tt *testTime) advanceFor(dur time.Duration) {
+	tt.mu.Lock()
+	defer tt.mu.Unlock()
+
+	targetTime := tt.cur.Add(dur)
+	for {
+		if len(tt.timers) == 0 {
+			tt.cur = targetTime
+			return
+		}
+		when := tt.timers[0].when
+		for _, timer := range tt.timers[1:] {
+			if timer.when.Before(when) {
+				when = timer.when
+			}
+		}
+		if when.After(targetTime) {
+			tt.cur = targetTime
+			return
+		}
+		if tt.advanceUnlocked(when.Sub(tt.cur)) {
+			tt.mu.Unlock()
+			time.Sleep(10 * time.Millisecond)
+			tt.mu.Lock()
+		}
+	}
 }
 
 // advance advances the fake time.
@@ -66,7 +94,8 @@ func (tt *testTime) advance(dur time.Duration) {
 }
 
 // advanceUnlock advances the fake time, assuming it is already locked.
-func (tt *testTime) advanceUnlocked(dur time.Duration) {
+func (tt *testTime) advanceUnlocked(dur time.Duration) bool {
+	result := false
 	tt.cur = tt.cur.Add(dur)
 	i := 0
 	for i < len(tt.timers) {
@@ -74,6 +103,7 @@ func (tt *testTime) advanceUnlocked(dur time.Duration) {
 			i++
 		} else {
 			tt.timers[i].ch <- tt.cur
+			result = true
 			// calculate how many goroutines we currently have in runtime
 			// and yield the processor, after every timer triggering,
 			// allowing all other goroutines to run
@@ -85,21 +115,5 @@ func (tt *testTime) advanceUnlocked(dur time.Duration) {
 			tt.timers = tt.timers[:len(tt.timers)-1]
 		}
 	}
-}
-
-// advanceToTimer advances the time to the next timer.
-func (tt *testTime) advanceToTimer() {
-	defer time.Sleep(10 * time.Millisecond)
-	tt.mu.Lock()
-	defer tt.mu.Unlock()
-	if len(tt.timers) == 0 {
-		return
-	}
-	when := tt.timers[0].when
-	for _, timer := range tt.timers[1:] {
-		if timer.when.Before(when) {
-			when = timer.when
-		}
-	}
-	tt.advanceUnlocked(when.Sub(tt.cur))
+	return result
 }
