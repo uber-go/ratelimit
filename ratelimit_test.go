@@ -88,15 +88,8 @@ func runTest(t *testing.T, fn func(testRunner)) {
 
 			fn(&r)
 			go func() {
-				move := func() {
-					defer func() {
-						_ = recover()
-						time.Sleep(10 * time.Millisecond)
-					}()
-					r.clock.advanceToTimer()
-				}
 				for {
-					move()
+					r.clock.advanceToTimer()
 				}
 			}()
 		})
@@ -262,15 +255,8 @@ func TestInitial(t *testing.T) {
 				)
 
 				go func() {
-					move := func() {
-						defer func() {
-							_ = recover()
-							time.Sleep(10 * time.Millisecond)
-						}()
-						r.getClock().advanceToTimer()
-					}
 					for {
-						move()
+						r.getClock().advanceToTimer()
 					}
 				}()
 

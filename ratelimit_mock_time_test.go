@@ -67,7 +67,6 @@ func (tt *testTime) advance(dur time.Duration) {
 
 // advanceUnlock advances the fake time, assuming it is already locked.
 func (tt *testTime) advanceUnlocked(dur time.Duration) {
-
 	tt.cur = tt.cur.Add(dur)
 	i := 0
 	for i < len(tt.timers) {
@@ -90,10 +89,11 @@ func (tt *testTime) advanceUnlocked(dur time.Duration) {
 
 // advanceToTimer advances the time to the next timer.
 func (tt *testTime) advanceToTimer() {
+	defer time.Sleep(2 * time.Millisecond)
 	tt.mu.Lock()
 	defer tt.mu.Unlock()
 	if len(tt.timers) == 0 {
-		panic("no timer")
+		return
 	}
 	when := tt.timers[0].when
 	for _, timer := range tt.timers[1:] {
