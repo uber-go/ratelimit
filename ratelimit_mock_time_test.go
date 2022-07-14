@@ -12,6 +12,7 @@ Modified parts:
 
 import (
 	"runtime"
+	"sort"
 	"sync"
 	"time"
 )
@@ -55,65 +56,56 @@ func (tt *testTime) newTimer(dur time.Duration) (<-chan time.Time, func() bool) 
 		ch:   ch,
 	}
 	tt.timers = append(tt.timers, timer)
+	sort.Slice(tt.timers, func(i, j int) bool {
+		return tt.timers[i].when.Before(tt.timers[j].when)
+	})
 	return ch, func() bool { return true }
 }
 
-func (tt *testTime) advanceFor(dur time.Duration) {
+// advance advances the fake time.
+func (tt *testTime) advance(dur time.Duration, backoffDuration time.Duration) {
 	tt.mu.Lock()
 	defer tt.mu.Unlock()
 
 	targetTime := tt.cur.Add(dur)
 	for {
-		if len(tt.timers) == 0 {
+		if len(tt.timers) == 0 || tt.timers[0].when.After(targetTime) {
 			tt.cur = targetTime
 			return
 		}
-		when := tt.timers[0].when
-		for _, timer := range tt.timers[1:] {
-			if timer.when.Before(when) {
-				when = timer.when
-			}
-		}
-		if when.After(targetTime) {
-			tt.cur = targetTime
-			return
-		}
-		if tt.advanceUnlocked(when.Sub(tt.cur)) {
+		if tt.advanceUnlocked(tt.timers[0].when.Sub(tt.cur)) && backoffDuration > 0 {
+			// after every timer triggering, we release our mutex
+			// and give time for other goroutines to run
 			tt.mu.Unlock()
-			time.Sleep(10 * time.Millisecond)
+			time.Sleep(backoffDuration)
 			tt.mu.Lock()
 		}
 	}
 }
 
-// advance advances the fake time.
-func (tt *testTime) advance(dur time.Duration) {
-	tt.mu.Lock()
-	defer tt.mu.Unlock()
-	tt.advanceUnlocked(dur)
-}
-
 // advanceUnlock advances the fake time, assuming it is already locked.
 func (tt *testTime) advanceUnlocked(dur time.Duration) bool {
-	result := false
 	tt.cur = tt.cur.Add(dur)
+	if len(tt.timers) == 0 || tt.timers[0].when.After(tt.cur) {
+		return false
+	}
+
 	i := 0
 	for i < len(tt.timers) {
 		if tt.timers[i].when.After(tt.cur) {
-			i++
-		} else {
-			tt.timers[i].ch <- tt.cur
-			result = true
-			// calculate how many goroutines we currently have in runtime
-			// and yield the processor, after every timer triggering,
-			// allowing all other goroutines to run
-			numOfAllRunningGoroutines := runtime.NumGoroutine()
-			for i := 0; i < numOfAllRunningGoroutines; i++ {
-				runtime.Gosched()
-			}
-			copy(tt.timers[i:], tt.timers[i+1:])
-			tt.timers = tt.timers[:len(tt.timers)-1]
+			break
+		}
+		tt.timers[i].ch <- tt.cur
+		i++
+		// calculate how many goroutines we currently have in runtime
+		// and yield the processor, after every timer triggering,
+		// allowing all other goroutines to run
+		numOfAllRunningGoroutines := runtime.NumGoroutine()
+		for j := 0; j < numOfAllRunningGoroutines; j++ {
+			runtime.Gosched()
 		}
 	}
-	return result
+
+	tt.timers = tt.timers[i:]
+	return true
 }

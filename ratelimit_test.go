@@ -10,6 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const advanceBackoffDuration = 5 * time.Millisecond
+
 func (tt *testTime) Now() time.Time {
 	return tt.now()
 }
@@ -87,7 +89,7 @@ func runTest(t *testing.T, fn func(testRunner)) {
 			defer r.wg.Wait()
 
 			fn(&r)
-			r.clock.advanceFor(r.maxDuration)
+			r.clock.advance(r.maxDuration, advanceBackoffDuration)
 		})
 	}
 }
@@ -113,7 +115,7 @@ func (r *runnerImpl) startTaking(rls ...Limiter) {
 			for _, rl := range rls {
 				rl.Take()
 			}
-			r.clock.advance(time.Nanosecond)
+			r.clock.advance(time.Nanosecond, 0)
 			r.count.Inc()
 			select {
 			case <-r.doneCh:
@@ -259,7 +261,7 @@ func TestInitial(t *testing.T) {
 				}
 				startWg.Wait()
 
-				r.getClock().advanceFor(time.Second)
+				r.getClock().advance(time.Second, advanceBackoffDuration)
 
 				for i := 0; i < 3; i++ {
 					ts := <-results
@@ -354,6 +356,7 @@ func TestSlack(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.msg, func(t *testing.T) {
+			t.Parallel()
 			runTest(t, func(r testRunner) {
 				slow := r.createLimiter(10, WithoutSlack)
 				fast := r.createLimiter(100, tt.opt...)
