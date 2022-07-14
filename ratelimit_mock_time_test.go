@@ -89,7 +89,7 @@ func (tt *testTime) advanceUnlocked(dur time.Duration) {
 
 // advanceToTimer advances the time to the next timer.
 func (tt *testTime) advanceToTimer() {
-	defer time.Sleep(2 * time.Millisecond)
+	defer time.Sleep(10 * time.Millisecond)
 	tt.mu.Lock()
 	defer tt.mu.Unlock()
 	if len(tt.timers) == 0 {
