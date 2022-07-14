@@ -22,7 +22,6 @@ func (tt *testTime) Sleep(duration time.Duration) {
 }
 
 type testRunner interface {
-	getName() string
 	// createLimiter builds a limiter with given options.
 	createLimiter(int, ...Option) Limiter
 	// startTaking tries to Take() on passed in limiters in a loop/goroutine.
@@ -40,7 +39,6 @@ type testRunner interface {
 type runnerImpl struct {
 	t *testing.T
 
-	name        string
 	clock       *testTime
 	constructor func(int, ...Option) Limiter
 	count       atomic.Int32
@@ -80,7 +78,6 @@ func runTest(t *testing.T, fn func(testRunner)) {
 		t.Run(tt.name, func(t *testing.T) {
 			r := runnerImpl{
 				t:           t,
-				name:        tt.name,
 				clock:       makeTestTime(),
 				constructor: tt.constructor,
 				doneCh:      make(chan struct{}),
@@ -98,10 +95,6 @@ func runTest(t *testing.T, fn func(testRunner)) {
 func (r *runnerImpl) createLimiter(rate int, opts ...Option) Limiter {
 	opts = append(opts, WithClock(r.clock))
 	return r.constructor(rate, opts...)
-}
-
-func (r *runnerImpl) getName() string {
-	return r.name
 }
 
 func (r *runnerImpl) getClock() *testTime {
@@ -276,7 +269,7 @@ func TestInitial(t *testing.T) {
 						time.Millisecond * 100,
 					},
 					have,
-					"bad timestamps for initial takes of "+r.getName(),
+					"bad timestamps for initial takes",
 				)
 			})
 		})
