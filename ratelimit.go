@@ -35,6 +35,7 @@ import (
 type Limiter interface {
 	// Take should block to make sure that the RPS is met.
 	Take() time.Time
+	TakeNoWait() (time.Time, time.Duration)
 }
 
 // Clock is the minimum necessary interface to instantiate a rate limiter with
@@ -132,4 +133,8 @@ func NewUnlimited() Limiter {
 
 func (unlimited) Take() time.Time {
 	return time.Now()
+}
+
+func (unlimited) TakeNoWait() (time.Time, time.Duration) {
+	return time.Now(), time.Duration(0)
 }

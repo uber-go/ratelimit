@@ -21,9 +21,8 @@
 package ratelimit // import "go.uber.org/ratelimit"
 
 import (
-	"time"
-
 	"sync/atomic"
+	"time"
 	"unsafe"
 )
 
@@ -66,6 +65,16 @@ func newAtomicBased(rate int, opts ...Option) *atomicLimiter {
 // Take blocks to ensure that the time spent between multiple
 // Take calls is on average per/rate.
 func (t *atomicLimiter) Take() time.Time {
+	last, interval := t.take()
+	t.clock.Sleep(interval)
+	return last
+}
+
+func (t *atomicLimiter) TakeNoWait() (time.Time, time.Duration) {
+	return t.take()
+}
+
+func (t *atomicLimiter) take() (time.Time, time.Duration) {
 	var (
 		newState state
 		taken    bool
@@ -105,6 +114,5 @@ func (t *atomicLimiter) Take() time.Time {
 		}
 		taken = atomic.CompareAndSwapPointer(&t.state, previousStatePointer, unsafe.Pointer(&newState))
 	}
-	t.clock.Sleep(interval)
-	return newState.last
+	return newState.last, interval
 }

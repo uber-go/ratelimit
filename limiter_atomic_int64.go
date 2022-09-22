@@ -21,9 +21,8 @@
 package ratelimit // import "go.uber.org/ratelimit"
 
 import (
-	"time"
-
 	"sync/atomic"
+	"time"
 )
 
 type atomicInt64Limiter struct {
@@ -57,6 +56,16 @@ func newAtomicInt64Based(rate int, opts ...Option) *atomicInt64Limiter {
 // Take blocks to ensure that the time spent between multiple
 // Take calls is on average time.Second/rate.
 func (t *atomicInt64Limiter) Take() time.Time {
+	last, interval := t.take()
+	t.clock.Sleep(interval)
+	return last
+}
+
+func (t *atomicInt64Limiter) TakeNoWait() (time.Time, time.Duration) {
+	return t.take()
+}
+
+func (t *atomicInt64Limiter) take() (time.Time, time.Duration) {
 	var (
 		newTimeOfNextPermissionIssue int64
 		now                          int64
@@ -82,6 +91,5 @@ func (t *atomicInt64Limiter) Take() time.Time {
 			break
 		}
 	}
-	t.clock.Sleep(time.Duration(newTimeOfNextPermissionIssue - now))
-	return time.Unix(0, newTimeOfNextPermissionIssue)
+	return time.Unix(0, newTimeOfNextPermissionIssue), time.Duration(newTimeOfNextPermissionIssue - now)
 }
