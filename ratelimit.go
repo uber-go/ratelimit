@@ -54,7 +54,7 @@ type config struct {
 
 // New returns a Limiter that will limit to the given RPS.
 func New(rate int, opts ...Option) Limiter {
-	return newAtomicBased(rate, opts...)
+	return newAtomicInt64Based(rate, opts...)
 }
 
 // buildConfig combines defaults with options.
