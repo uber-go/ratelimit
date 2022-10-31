@@ -82,6 +82,12 @@ func (t *atomicInt64Limiter) Take() time.Time {
 			break
 		}
 	}
-	t.clock.Sleep(time.Duration(newTimeOfNextPermissionIssue - now))
-	return time.Unix(0, newTimeOfNextPermissionIssue)
+
+	sleepDuration := time.Duration(newTimeOfNextPermissionIssue - now)
+	if sleepDuration > 0 {
+		t.clock.Sleep(sleepDuration)
+		return time.Unix(0, newTimeOfNextPermissionIssue)
+	}
+	// return now if we don't sleep as atomicLimiter does
+	return time.Unix(0, now)
 }
