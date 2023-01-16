@@ -4,6 +4,14 @@ This package provides a Golang implementation of the leaky-bucket rate limit alg
 This implementation refills the bucket based on the time elapsed between
 requests instead of requiring an interval clock to fill the bucket discretely.
 
+## Installation
+To use this library in your project initialize go modules then run:
+
+```bash
+go get go.uber.org/ratelimit
+```
+
+## Usage:
 Create a rate limiter with a maximum number of operations to perform per second.
 Call Take() before each operation. Take will sleep until you can continue.
 
