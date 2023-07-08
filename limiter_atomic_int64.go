@@ -40,22 +40,19 @@ type atomicInt64Limiter struct {
 }
 
 // newAtomicBased returns a new atomic based limiter.
-func newAtomicInt64Based(rate int, opts ...Option) *atomicInt64Limiter {
+func newAtomicInt64Based(rate int, conf config) *atomicInt64Limiter {
 	var al atomicInt64Limiter
-	al.init(rate, opts...)
+	al.init(rate, conf)
 	return &al
 }
 
 // init initialize a new atomic based limiter.
-func (t *atomicInt64Limiter) init(rate int, opts ...Option) {
-	// TODO consider moving config building to the implementation
-	// independent code.
-	var config = buildConfig(opts)
-	var perRequest = config.per / time.Duration(rate)
+func (t *atomicInt64Limiter) init(rate int, conf config) {
+	var perRequest = conf.per / time.Duration(rate)
 
 	t.perRequest = perRequest
-	t.maxSlack = time.Duration(config.slack) * perRequest
-	t.clock = config.clock
+	t.maxSlack = time.Duration(conf.slack) * perRequest
+	t.clock = conf.clock
 }
 
 // Take blocks to ensure that the time spent between multiple

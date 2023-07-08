@@ -35,17 +35,19 @@ type mutexLimiter struct {
 }
 
 // newMutexBased returns a new atomic based limiter.
-func newMutexBased(rate int, opts ...Option) *mutexLimiter {
-	// TODO consider moving config building to the implementation
-	// independent code.
-	config := buildConfig(opts)
-	perRequest := config.per / time.Duration(rate)
-	l := &mutexLimiter{
-		perRequest: perRequest,
-		maxSlack:   -1 * time.Duration(config.slack) * perRequest,
-		clock:      config.clock,
-	}
-	return l
+func newMutexBased(rate int, conf config) *mutexLimiter {
+	var ml mutexLimiter
+	ml.init(rate, conf)
+	return &ml
+}
+
+// init initialize a new atomic based limiter.
+func (t *mutexLimiter) init(rate int, conf config) {
+	var perRequest = conf.per / time.Duration(rate)
+
+	t.perRequest = perRequest
+	t.maxSlack = -1 * time.Duration(conf.slack) * perRequest
+	t.clock = conf.clock
 }
 
 // Take blocks to ensure that the time spent between multiple

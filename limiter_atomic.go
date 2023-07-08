@@ -44,22 +44,19 @@ type state struct {
 }
 
 // newAtomicBased returns a new atomic based limiter.
-func newAtomicBased(rate int, opts ...Option) *atomicLimiter {
+func newAtomicBased(rate int, conf config) *atomicLimiter {
 	var al atomicLimiter
-	al.init(rate, opts...)
+	al.init(rate, conf)
 	return &al
 }
 
 // init initialize a new atomic based limiter.
-func (t *atomicLimiter) init(rate int, opts ...Option) {
-	// TODO consider moving config building to the implementation
-	// independent code.
-	var config = buildConfig(opts)
-	var perRequest = config.per / time.Duration(rate)
+func (t *atomicLimiter) init(rate int, conf config) {
+	var perRequest = conf.per / time.Duration(rate)
 
 	t.perRequest = perRequest
-	t.maxSlack = -1 * time.Duration(config.slack) * perRequest
-	t.clock = config.clock
+	t.maxSlack = -1 * time.Duration(conf.slack) * perRequest
+	t.clock = conf.clock
 }
 
 // Take blocks to ensure that the time spent between multiple

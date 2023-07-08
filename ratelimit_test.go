@@ -47,19 +47,22 @@ func runTest(t *testing.T, fn func(testRunner)) {
 		{
 			name: "mutex",
 			constructor: func(rate int, opts ...Option) Limiter {
-				return newMutexBased(rate, opts...)
+				var conf = buildConfig(opts)
+				return newMutexBased(rate, conf)
 			},
 		},
 		{
 			name: "atomic",
 			constructor: func(rate int, opts ...Option) Limiter {
-				return newAtomicBased(rate, opts...)
+				var conf = buildConfig(opts)
+				return newAtomicBased(rate, conf)
 			},
 		},
 		{
 			name: "atomic_int64",
 			constructor: func(rate int, opts ...Option) Limiter {
-				return newAtomicInt64Based(rate, opts...)
+				var conf = buildConfig(opts)
+				return newAtomicInt64Based(rate, conf)
 			},
 		},
 	}

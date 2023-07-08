@@ -10,13 +10,14 @@ import (
 )
 
 func BenchmarkRateLimiter(b *testing.B) {
-	count := atomic.NewInt64(0)
+	var count = atomic.NewInt64(0)
+	var config = buildConfig(nil)
 	for _, procs := range []int{1, 4, 8, 16} {
 		runtime.GOMAXPROCS(procs)
 		for name, limiter := range map[string]Limiter{
-			"atomic":       newAtomicBased(b.N * 1000000000000),
-			"atomic_int64": newAtomicInt64Based(b.N * 1000000000000),
-			"mutex":        newMutexBased(b.N * 1000000000000),
+			"atomic":       newAtomicBased(b.N*1000000000000, config),
+			"atomic_int64": newAtomicInt64Based(b.N*1000000000000, config),
+			"mutex":        newMutexBased(b.N*1000000000000, config),
 		} {
 			for ng := 1; ng < 16; ng++ {
 				runner(b, name, procs, ng, limiter, count)
