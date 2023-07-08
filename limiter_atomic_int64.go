@@ -29,10 +29,10 @@ import (
 type atomicInt64Limiter struct {
 	//lint:ignore U1000 Padding is unused but it is crucial to maintain performance
 	// of this rate limiter in case of collocation with other frequently accessed memory.
-	prepadding [64]byte // cache line size = 64; created to avoid false sharing.
-	state      int64    // unix nanoseconds of the next permissions issue.
-	//lint:ignore U1000 like prepadding.
-	postpadding [56]byte // cache line size - state size = 64 - 8; created to avoid false sharing.
+	prePadding                [64]byte     // cache line size = 64; created to avoid false sharing.
+	timeOfNextPermissionIssue atomic.Int64 // unix nanoseconds of the next permissions issue.
+	//lint:ignore U1000 like prePadding.
+	postPadding [56]byte // cache line size - state size = 64 - 8; created to avoid false sharing.
 
 	perRequest time.Duration
 	maxSlack   time.Duration
@@ -41,17 +41,21 @@ type atomicInt64Limiter struct {
 
 // newAtomicBased returns a new atomic based limiter.
 func newAtomicInt64Based(rate int, opts ...Option) *atomicInt64Limiter {
+	var al atomicInt64Limiter
+	al.init(rate, opts...)
+	return &al
+}
+
+// init initialize a new atomic based limiter.
+func (t *atomicInt64Limiter) init(rate int, opts ...Option) {
 	// TODO consider moving config building to the implementation
 	// independent code.
-	config := buildConfig(opts)
-	perRequest := config.per / time.Duration(rate)
-	l := &atomicInt64Limiter{
-		perRequest: perRequest,
-		maxSlack:   time.Duration(config.slack) * perRequest,
-		clock:      config.clock,
-	}
-	atomic.StoreInt64(&l.state, 0)
-	return l
+	var config = buildConfig(opts)
+	var perRequest = config.per / time.Duration(rate)
+
+	t.perRequest = perRequest
+	t.maxSlack = time.Duration(config.slack) * perRequest
+	t.clock = config.clock
 }
 
 // Take blocks to ensure that the time spent between multiple
@@ -63,7 +67,7 @@ func (t *atomicInt64Limiter) Take() time.Time {
 	)
 	for {
 		now = t.clock.Now().UnixNano()
-		timeOfNextPermissionIssue := atomic.LoadInt64(&t.state)
+		var timeOfNextPermissionIssue = t.timeOfNextPermissionIssue.Load()
 
 		switch {
 		case timeOfNextPermissionIssue == 0 || (t.maxSlack == 0 && now-timeOfNextPermissionIssue > int64(t.perRequest)):
@@ -78,12 +82,12 @@ func (t *atomicInt64Limiter) Take() time.Time {
 			newTimeOfNextPermissionIssue = timeOfNextPermissionIssue + int64(t.perRequest)
 		}
 
-		if atomic.CompareAndSwapInt64(&t.state, timeOfNextPermissionIssue, newTimeOfNextPermissionIssue) {
+		if t.timeOfNextPermissionIssue.CompareAndSwap(timeOfNextPermissionIssue, newTimeOfNextPermissionIssue) {
 			break
 		}
 	}
 
-	sleepDuration := time.Duration(newTimeOfNextPermissionIssue - now)
+	var sleepDuration = time.Duration(newTimeOfNextPermissionIssue - now)
 	if sleepDuration > 0 {
 		t.clock.Sleep(sleepDuration)
 		return time.Unix(0, newTimeOfNextPermissionIssue)

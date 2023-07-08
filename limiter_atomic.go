@@ -24,16 +24,11 @@ import (
 	"time"
 
 	"sync/atomic"
-	"unsafe"
 )
 
-type state struct {
-	last     time.Time
-	sleepFor time.Duration
-}
-
 type atomicLimiter struct {
-	state unsafe.Pointer
+	state atomic.Pointer[state]
+
 	//lint:ignore U1000 Padding is unused but it is crucial to maintain performance
 	// of this rate limiter in case of collocation with other frequently accessed memory.
 	padding [56]byte // cache line size - state pointer size = 64 - 8; created to avoid false sharing.
@@ -43,39 +38,47 @@ type atomicLimiter struct {
 	clock      Clock
 }
 
+type state struct {
+	last     time.Time
+	sleepFor time.Duration
+}
+
 // newAtomicBased returns a new atomic based limiter.
 func newAtomicBased(rate int, opts ...Option) *atomicLimiter {
+	var al atomicLimiter
+	al.init(rate, opts...)
+	return &al
+}
+
+// init initialize a new atomic based limiter.
+func (t *atomicLimiter) init(rate int, opts ...Option) {
 	// TODO consider moving config building to the implementation
 	// independent code.
-	config := buildConfig(opts)
-	perRequest := config.per / time.Duration(rate)
-	l := &atomicLimiter{
-		perRequest: perRequest,
-		maxSlack:   -1 * time.Duration(config.slack) * perRequest,
-		clock:      config.clock,
-	}
+	var config = buildConfig(opts)
+	var perRequest = config.per / time.Duration(rate)
 
-	initialState := state{
-		last:     time.Time{},
-		sleepFor: 0,
-	}
-	atomic.StorePointer(&l.state, unsafe.Pointer(&initialState))
-	return l
+	t.perRequest = perRequest
+	t.maxSlack = -1 * time.Duration(config.slack) * perRequest
+	t.clock = config.clock
 }
 
 // Take blocks to ensure that the time spent between multiple
 // Take calls is on average per/rate.
 func (t *atomicLimiter) Take() time.Time {
 	var (
-		newState state
-		taken    bool
-		interval time.Duration
+		newState        state
+		oldStatePointer *state
+		taken           bool
+		interval        time.Duration
 	)
 	for !taken {
-		now := t.clock.Now()
+		var now = t.clock.Now()
 
-		previousStatePointer := atomic.LoadPointer(&t.state)
-		oldState := (*state)(previousStatePointer)
+		oldStatePointer = t.state.Load()
+		var oldState state
+		if oldStatePointer != nil {
+			oldState = *oldStatePointer
+		}
 
 		newState = state{
 			last:     now,
@@ -84,7 +87,7 @@ func (t *atomicLimiter) Take() time.Time {
 
 		// If this is our first request, then we allow it.
 		if oldState.last.IsZero() {
-			taken = atomic.CompareAndSwapPointer(&t.state, previousStatePointer, unsafe.Pointer(&newState))
+			taken = t.state.CompareAndSwap(oldStatePointer, &newState)
 			continue
 		}
 
@@ -103,8 +106,9 @@ func (t *atomicLimiter) Take() time.Time {
 			newState.last = newState.last.Add(newState.sleepFor)
 			interval, newState.sleepFor = newState.sleepFor, 0
 		}
-		taken = atomic.CompareAndSwapPointer(&t.state, previousStatePointer, unsafe.Pointer(&newState))
+		taken = t.state.CompareAndSwap(oldStatePointer, &newState)
 	}
+
 	t.clock.Sleep(interval)
 	return newState.last
 }
