@@ -14,10 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v4
         with:
           go-version-file: 'go.mod'
           check-latest: true
-          cache: true
+          cache-dependency-path: '**/go.sum'
       - name: Benchmark
         run: make bench
