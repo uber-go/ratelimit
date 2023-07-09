@@ -6,7 +6,7 @@ require (
 	github.com/storozhukBM/benchart v1.0.0
 	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616
 	golang.org/x/perf v0.0.0-20230427221525-d343f6398b76
-	honnef.co/go/tools v0.4.3
+	honnef.co/go/tools v0.3.3
 )
 
 require (
