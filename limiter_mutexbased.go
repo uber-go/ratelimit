@@ -34,7 +34,7 @@ type mutexLimiter struct {
 	clock      Clock
 }
 
-// newMutexBased returns a new atomic based limiter.
+// newMutexBased returns a new mutex based limiter.
 func newMutexBased(rate int, opts ...Option) *mutexLimiter {
 	// TODO consider moving config building to the implementation
 	// independent code.
