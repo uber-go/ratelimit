@@ -2,6 +2,9 @@ name: cover
 
 on: [push]
 
+permissions:
+  contents: read
+
 jobs:
   test:
 
