@@ -269,6 +269,21 @@ func TestInitial(t *testing.T) {
 	}
 }
 
+func TestImmediateSlackReapply(t *testing.T) {
+	t.Parallel()
+	rl := New(1, Per(time.Second), WithSlack(1))
+	rl.Take()                   // we take one immediately
+	time.Sleep(2 * time.Second) // waiting for slack to accumulate
+	start := time.Now()
+	for i := 0; i < 5; i++ {
+		rl.Take() // consume 2 immediately and then 1 every second after it
+		// sleep 1ns for now-timeOfNextPermissionIssue != int64(t.maxSlack)
+		time.Sleep(1 * time.Nanosecond)
+	}
+
+	assert.Condition(t, func() bool { return time.Since(start) > 3*time.Second }, "too fast consumption: %v", time.Since(start))
+}
+
 func TestSlack(t *testing.T) {
 	t.Parallel()
 	// To simulate slack, we combine two limiters.
