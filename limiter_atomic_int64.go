@@ -21,9 +21,8 @@
 package ratelimit // import "go.uber.org/ratelimit"
 
 import (
-	"time"
-
 	"sync/atomic"
+	"time"
 )
 
 type atomicInt64Limiter struct {
@@ -69,7 +68,7 @@ func (t *atomicInt64Limiter) Take() time.Time {
 		case timeOfNextPermissionIssue == 0 || (t.maxSlack == 0 && now-timeOfNextPermissionIssue > int64(t.perRequest)):
 			// if this is our first call or t.maxSlack == 0 we need to shrink issue time to now
 			newTimeOfNextPermissionIssue = now
-		case t.maxSlack > 0 && now-timeOfNextPermissionIssue > int64(t.maxSlack):
+		case t.maxSlack > 0 && now-timeOfNextPermissionIssue > int64(t.maxSlack)+int64(t.perRequest):
 			// a lot of nanoseconds passed since the last Take call
 			// we will limit max accumulated time to maxSlack
 			newTimeOfNextPermissionIssue = now - int64(t.maxSlack)
