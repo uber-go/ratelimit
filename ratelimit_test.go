@@ -14,6 +14,8 @@ import (
 type testRunner interface {
 	// createLimiter builds a limiter with given options.
 	createLimiter(int, ...Option) Limiter
+	// takeOnceAfter attempts to Take at a specific time.
+	takeOnceAfter(time.Duration, Limiter)
 	// startTaking tries to Take() on passed in limiters in a loop/goroutine.
 	startTaking(rls ...Limiter)
 	// assertCountAt asserts the limiters have Taken() a number of times at the given time.
@@ -109,6 +111,16 @@ func (r *runnerImpl) startTaking(rls ...Limiter) {
 			default:
 			}
 		}
+	})
+}
+
+// takeOnceAfter attempts to Take at a specific time.
+func (r *runnerImpl) takeOnceAfter(d time.Duration, rl Limiter) {
+	r.wg.Add(1)
+	r.afterFunc(d, func() {
+		rl.Take()
+		r.count.Inc()
+		r.wg.Done()
 	})
 }
 
@@ -267,6 +279,22 @@ func TestInitial(t *testing.T) {
 			})
 		})
 	}
+}
+
+func TestMaxSlack(t *testing.T) {
+	t.Parallel()
+	runTest(t, func(r testRunner) {
+		rl := r.createLimiter(1, WithSlack(1))
+
+		r.takeOnceAfter(time.Nanosecond, rl)
+		r.takeOnceAfter(2*time.Second+1*time.Nanosecond, rl)
+		r.takeOnceAfter(2*time.Second+2*time.Nanosecond, rl)
+		r.takeOnceAfter(2*time.Second+3*time.Nanosecond, rl)
+		r.takeOnceAfter(2*time.Second+4*time.Nanosecond, rl)
+
+		r.assertCountAt(3*time.Second, 3)
+		r.assertCountAt(10*time.Second, 5)
+	})
 }
 
 func TestSlack(t *testing.T) {
