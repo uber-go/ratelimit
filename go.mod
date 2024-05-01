@@ -3,7 +3,7 @@ module go.uber.org/ratelimit
 go 1.20
 
 require (
-	github.com/benbjohnson/clock v1.3.0
+	github.com/benbjohnson/clock v1.3.5
 	github.com/stretchr/testify v1.6.1
 	go.uber.org/atomic v1.7.0
 )
