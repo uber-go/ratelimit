@@ -22,8 +22,6 @@ package ratelimit // import "go.uber.org/ratelimit"
 
 import (
 	"time"
-
-	"github.com/benbjohnson/clock"
 )
 
 // Note: This file is inspired by:
@@ -45,6 +43,16 @@ type Clock interface {
 	Sleep(time.Duration)
 }
 
+type internalClock struct{}
+
+func (i *internalClock) Now() time.Time {
+	return time.Now()
+}
+
+func (i *internalClock) Sleep(duration time.Duration) {
+	time.Sleep(duration)
+}
+
 // config configures a limiter.
 type config struct {
 	clock Clock
@@ -60,7 +68,7 @@ func New(rate int, opts ...Option) Limiter {
 // buildConfig combines defaults with options.
 func buildConfig(opts []Option) config {
 	c := config{
-		clock: clock.New(),
+		clock: &internalClock{},
 		slack: 10,
 		per:   time.Second,
 	}

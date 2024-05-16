@@ -7,9 +7,19 @@ import (
 
 	"go.uber.org/atomic"
 
-	"github.com/benbjohnson/clock"
 	"github.com/stretchr/testify/assert"
 )
+
+const advanceBackoffDuration = 5 * time.Millisecond
+
+func (tt *testTime) Now() time.Time {
+	return tt.now()
+}
+
+func (tt *testTime) Sleep(duration time.Duration) {
+	timer, _ := tt.newTimer(duration)
+	<-timer
+}
 
 type testRunner interface {
 	// createLimiter builds a limiter with given options.
@@ -25,13 +35,13 @@ type testRunner interface {
 	// not using clock.AfterFunc because andres-erbsen/clock misses a nap there.
 	afterFunc(d time.Duration, fn func())
 	// some tests want raw access to the clock.
-	getClock() *clock.Mock
+	getClock() *testTime
 }
 
 type runnerImpl struct {
 	t *testing.T
 
-	clock       *clock.Mock
+	clock       *testTime
 	constructor func(int, ...Option) Limiter
 	count       atomic.Int32
 	// maxDuration is the time we need to move into the future for a test.
@@ -68,13 +78,9 @@ func runTest(t *testing.T, fn func(testRunner)) {
 
 	for _, tt := range impls {
 		t.Run(tt.name, func(t *testing.T) {
-			// Set a non-default time.Time since some limiters (int64 in particular) use
-			// the default value as "non-initialized" state.
-			clockMock := clock.NewMock()
-			clockMock.Set(time.Now())
 			r := runnerImpl{
 				t:           t,
-				clock:       clockMock,
+				clock:       makeTestTime(),
 				constructor: tt.constructor,
 				doneCh:      make(chan struct{}),
 			}
@@ -82,7 +88,7 @@ func runTest(t *testing.T, fn func(testRunner)) {
 			defer r.wg.Wait()
 
 			fn(&r)
-			r.clock.Add(r.maxDuration)
+			r.clock.advance(r.maxDuration, advanceBackoffDuration)
 		})
 	}
 }
@@ -93,7 +99,7 @@ func (r *runnerImpl) createLimiter(rate int, opts ...Option) Limiter {
 	return r.constructor(rate, opts...)
 }
 
-func (r *runnerImpl) getClock() *clock.Mock {
+func (r *runnerImpl) getClock() *testTime {
 	return r.clock
 }
 
@@ -104,6 +110,7 @@ func (r *runnerImpl) startTaking(rls ...Limiter) {
 			for _, rl := range rls {
 				rl.Take()
 			}
+			r.clock.advance(time.Nanosecond, 0)
 			r.count.Inc()
 			select {
 			case <-r.doneCh:
@@ -138,14 +145,14 @@ func (r *runnerImpl) afterFunc(d time.Duration, fn func()) {
 	if d > r.maxDuration {
 		r.maxDuration = d
 	}
-
+	timer, _ := r.clock.newTimer(d)
 	r.goWait(func() {
 		select {
 		case <-r.doneCh:
 			return
-		case <-r.clock.After(d):
+		case <-timer:
+			fn()
 		}
-		fn()
 	})
 }
 
@@ -249,17 +256,17 @@ func TestInitial(t *testing.T) {
 					have    []time.Duration
 					startWg sync.WaitGroup
 				)
-				startWg.Add(3)
 
+				startWg.Add(3)
 				for i := 0; i < 3; i++ {
 					go func() {
 						startWg.Done()
 						results <- rl.Take()
 					}()
 				}
-
 				startWg.Wait()
-				clk.Add(time.Second)
+
+				r.getClock().advance(time.Second, advanceBackoffDuration)
 
 				for i := 0; i < 3; i++ {
 					ts := <-results
@@ -274,7 +281,7 @@ func TestInitial(t *testing.T) {
 						time.Millisecond * 100,
 					},
 					have,
-					"bad timestamps for inital takes",
+					"bad timestamps for initial takes",
 				)
 			})
 		})
@@ -370,6 +377,7 @@ func TestSlack(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.msg, func(t *testing.T) {
+			t.Parallel()
 			runTest(t, func(r testRunner) {
 				slow := r.createLimiter(10, WithoutSlack)
 				fast := r.createLimiter(100, tt.opt...)
