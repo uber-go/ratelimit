@@ -53,7 +53,7 @@ type config struct {
 }
 
 // New returns a Limiter that will limit to the given RPS.
-func New(rate int, opts ...Option) Limiter {
+func New(rate int64, opts ...Option) Limiter {
 	return newAtomicInt64Based(rate, opts...)
 }
 

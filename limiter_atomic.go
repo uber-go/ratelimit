@@ -44,7 +44,7 @@ type atomicLimiter struct {
 }
 
 // newAtomicBased returns a new atomic based limiter.
-func newAtomicBased(rate int, opts ...Option) *atomicLimiter {
+func newAtomicBased(rate int64, opts ...Option) *atomicLimiter {
 	// TODO consider moving config building to the implementation
 	// independent code.
 	config := buildConfig(opts)

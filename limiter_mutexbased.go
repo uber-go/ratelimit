@@ -35,7 +35,7 @@ type mutexLimiter struct {
 }
 
 // newMutexBased returns a new mutex based limiter.
-func newMutexBased(rate int, opts ...Option) *mutexLimiter {
+func newMutexBased(rate int64, opts ...Option) *mutexLimiter {
 	// TODO consider moving config building to the implementation
 	// independent code.
 	config := buildConfig(opts)

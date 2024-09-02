@@ -14,9 +14,9 @@ func BenchmarkRateLimiter(b *testing.B) {
 	for _, procs := range []int{1, 4, 8, 16} {
 		runtime.GOMAXPROCS(procs)
 		for name, limiter := range map[string]Limiter{
-			"atomic":       newAtomicBased(b.N * 1000000000000),
-			"atomic_int64": newAtomicInt64Based(b.N * 1000000000000),
-			"mutex":        newMutexBased(b.N * 1000000000000),
+			"atomic":       newAtomicBased(int64(b.N) * int64(1000000000000)),
+			"atomic_int64": newAtomicInt64Based(int64(b.N) * int64(1000000000000)),
+			"mutex":        newMutexBased(int64(b.N) * int64(1000000000000)),
 		} {
 			for ng := 1; ng < 16; ng++ {
 				runner(b, name, procs, ng, limiter, count)

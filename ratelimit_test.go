@@ -13,7 +13,7 @@ import (
 
 type testRunner interface {
 	// createLimiter builds a limiter with given options.
-	createLimiter(int, ...Option) Limiter
+	createLimiter(int64, ...Option) Limiter
 	// takeOnceAfter attempts to Take at a specific time.
 	takeOnceAfter(time.Duration, Limiter)
 	// startTaking tries to Take() on passed in limiters in a loop/goroutine.
@@ -32,7 +32,7 @@ type runnerImpl struct {
 	t *testing.T
 
 	clock       *clock.Mock
-	constructor func(int, ...Option) Limiter
+	constructor func(int64, ...Option) Limiter
 	count       atomic.Int32
 	// maxDuration is the time we need to move into the future for a test.
 	// It's populated automatically based on assertCountAt/afterFunc.
@@ -44,23 +44,23 @@ type runnerImpl struct {
 func runTest(t *testing.T, fn func(testRunner)) {
 	impls := []struct {
 		name        string
-		constructor func(int, ...Option) Limiter
+		constructor func(int64, ...Option) Limiter
 	}{
 		{
 			name: "mutex",
-			constructor: func(rate int, opts ...Option) Limiter {
+			constructor: func(rate int64, opts ...Option) Limiter {
 				return newMutexBased(rate, opts...)
 			},
 		},
 		{
 			name: "atomic",
-			constructor: func(rate int, opts ...Option) Limiter {
+			constructor: func(rate int64, opts ...Option) Limiter {
 				return newAtomicBased(rate, opts...)
 			},
 		},
 		{
 			name: "atomic_int64",
-			constructor: func(rate int, opts ...Option) Limiter {
+			constructor: func(rate int64, opts ...Option) Limiter {
 				return newAtomicInt64Based(rate, opts...)
 			},
 		},
@@ -88,7 +88,7 @@ func runTest(t *testing.T, fn func(testRunner)) {
 }
 
 // createLimiter builds a limiter with given options.
-func (r *runnerImpl) createLimiter(rate int, opts ...Option) Limiter {
+func (r *runnerImpl) createLimiter(rate int64, opts ...Option) Limiter {
 	opts = append(opts, WithClock(r.clock))
 	return r.constructor(rate, opts...)
 }
