@@ -388,3 +388,29 @@ func TestSlack(t *testing.T) {
 		})
 	}
 }
+
+func TestBuildConfig(t *testing.T) {
+	t.Parallel()
+
+	// Default config
+	c := buildConfig(nil)
+	assert.NotNil(t, c.clock)
+	assert.Equal(t, 10, c.slack)
+	assert.Equal(t, time.Second, c.per)
+
+	// Custom options
+	mockClock := clock.NewMock()
+	c2 := buildConfig([]Option{
+		WithClock(mockClock),
+		WithSlack(25),
+		Per(500 * time.Millisecond),
+	})
+	assert.Equal(t, mockClock, c2.clock)
+	assert.Equal(t, 25, c2.slack)
+	assert.Equal(t, 500*time.Millisecond, c2.per)
+
+	// WithoutSlack
+	c3 := buildConfig([]Option{WithoutSlack})
+	assert.Equal(t, 0, c3.slack)
+}
+
