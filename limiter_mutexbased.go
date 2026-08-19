@@ -52,13 +52,12 @@ func newMutexBased(rate int, opts ...Option) *mutexLimiter {
 // Take calls is on average per/rate.
 func (t *mutexLimiter) Take() time.Time {
 	t.Lock()
-	defer t.Unlock()
-
 	now := t.clock.Now()
 
 	// If this is our first request, then we allow it.
 	if t.last.IsZero() {
 		t.last = now
+		t.Unlock()
 		return t.last
 	}
 
@@ -76,13 +75,21 @@ func (t *mutexLimiter) Take() time.Time {
 	}
 
 	// If sleepFor is positive, then we should sleep now.
+	var sleepFor time.Duration
 	if t.sleepFor > 0 {
-		t.clock.Sleep(t.sleepFor)
+		sleepFor = t.sleepFor
 		t.last = now.Add(t.sleepFor)
 		t.sleepFor = 0
 	} else {
 		t.last = now
 	}
+	res := t.last
+	t.Unlock()
 
-	return t.last
+	if sleepFor > 0 {
+		t.clock.Sleep(sleepFor)
+	}
+
+	return res
 }
+
