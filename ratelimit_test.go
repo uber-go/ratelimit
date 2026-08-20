@@ -360,7 +360,7 @@ func TestSlack(t *testing.T) {
 			want: 240,
 		},
 		{
-			// Note this is bigger then the rate of the limiter.
+			// Note this is bigger than the rate of the limiter.
 			msg: "slack of 150, with per",
 			opt: []Option{WithSlack(150), Per(500 * time.Millisecond)},
 			// 2*(10*2) + 1*(100*2) + 1*150 (slack)

@@ -125,7 +125,7 @@ func Per(per time.Duration) Option {
 
 type unlimited struct{}
 
-// NewUnlimited returns a RateLimiter that is not limited.
+// NewUnlimited returns a Limiter that is not limited.
 func NewUnlimited() Limiter {
 	return unlimited{}
 }
