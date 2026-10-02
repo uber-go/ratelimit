@@ -388,3 +388,11 @@ func TestSlack(t *testing.T) {
 		})
 	}
 }
+
+func TestNewRejectsNonpositiveRates(t *testing.T) {
+	for _, rate := range []int{0, -1, -100} {
+		assert.PanicsWithValue(t, "ratelimit: rate must be positive", func() {
+			New(rate)
+		})
+	}
+}
