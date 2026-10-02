@@ -53,7 +53,11 @@ type config struct {
 }
 
 // New returns a Limiter that will limit to the given RPS.
+// It panics if rate is not positive. Use NewUnlimited for an unlimited rate.
 func New(rate int, opts ...Option) Limiter {
+	if rate <= 0 {
+		panic("ratelimit: rate must be positive")
+	}
 	return newAtomicInt64Based(rate, opts...)
 }
 
