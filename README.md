@@ -39,10 +39,22 @@ func main() {
 }
 ```
 
+## Rate Shaping vs. Rate Limiting
+
+This package implements rate and traffic shaping rather than request shedding or dropping. When incoming traffic exceeds the configured rate limit, `Take()` blocks and delays execution until the next allowance is available, smoothing out bursts of operations into a steady rate.
+
+Because `Take()` delays operations rather than rejecting them, callers should consider queue management: under sustained over-capacity traffic, blocking can cause goroutines or queued work to accumulate. If your use case requires shedding excess requests (such as returning HTTP 429 Too Many Requests immediately):
+- You can bound wait times or implement dropping by combining `Take()` with contexts or timeouts (e.g., running `Take()` in a goroutine and selecting between completion and `ctx.Done()`).
+- Alternatively, rate-limiting libraries such as [x/time/rate] provide non-blocking inspection and dropping primitives (such as `Allow()` or `Reserve()`).
+
 ## FAQ:
 - What's the major diff v.s. https://pkg.go.dev/golang.org/x/time/rate? (based on #77)
 
   This ratelimiter was meant to have a (1) simple API and (2) minimal overhead. For more complex use-cases [x/time/rate] is a great choice.  See [here][redit] for historical context, and [here][bench] for benchmarks (from 2016).
+
+- Is this rate limiting or traffic shaping? (based on #118)
+
+  This package implements traffic shaping by blocking/delaying execution to smooth bursts rather than shedding requests. See [Rate Shaping vs. Rate Limiting](#rate-shaping-vs-rate-limiting) for queue management and guidance on dropping requests.
 
 - Why does example_test.go fail when I run it locally on Windows? (based on #80)
 

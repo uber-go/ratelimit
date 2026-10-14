@@ -18,6 +18,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+// Package ratelimit provides an efficient leaky-bucket rate limiter.
+//
+// This package implements rate and traffic shaping: Limiter.Take() blocks and
+// delays execution until an allowance is available to smooth out traffic bursts,
+// rather than dropping or shedding excess requests immediately.
 package ratelimit // import "go.uber.org/ratelimit"
 
 import (
@@ -31,9 +36,14 @@ import (
 
 // Limiter is used to rate-limit some process, possibly across goroutines.
 // The process is expected to call Take() before every iteration, which
-// may block to throttle the goroutine.
+// blocks to throttle the goroutine and shape traffic.
+//
+// Unlike limiters that reject or drop requests exceeding a rate limit,
+// Limiter shapes traffic by delaying callers until the rate quota allows
+// execution.
 type Limiter interface {
-	// Take should block to make sure that the RPS is met.
+	// Take blocks until an allowance is available to ensure the configured
+	// rate is met (traffic shaping), rather than shedding or dropping requests.
 	Take() time.Time
 }
 
